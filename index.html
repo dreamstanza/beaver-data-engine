@@ -75,6 +75,9 @@ const ICONS = {
   star: _ic("0 0 24 24",'<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>'),
   barchart: _ic("0 0 24 24",'<rect x="3" y="12" width="4" height="9" rx="0.5"/><rect x="10" y="5" width="4" height="16" rx="0.5"/><rect x="17" y="8" width="4" height="13" rx="0.5"/>'),
   box: _ic("0 0 24 24",'<path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>'),
+  upload: _ic("0 0 24 24",'<polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/>'),
+  folder: _ic("0 0 24 24",'<path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>'),
+  link: _ic("0 0 24 24",'<path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>'),
   cpu: _ic("0 0 24 24",'<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="15" x2="23" y2="15"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="15" x2="4" y2="15"/>'),
 };
 const Icon = ({name, size=24, color="currentColor", style:extraStyle={}, strokeWidth=2, ...rest}) => {
@@ -212,6 +215,17 @@ const MOCK_PRODUCTS=[
 {product_id:"PKG-2026-001",product_name:"Last 100m Delivery Dataset V1",product_name_cn:"末端100米配送数据集 V1",product_type:"last_100m_delivery_dataset",description:"涵盖多种场景、地形和天气条件的末端100米配送完整数据集。",included_asset_ids:["BDP-2026-000001","BDP-2026-000003","BDP-2026-000005","BDP-2026-000006","BDP-2026-000007","BDP-2026-000009"],total_hours:1.62,total_distance_meters:1850,total_size_gb:72.8,scene_count:4,terrain_tags:["flat_road","speed_bump","brick_road","wet_ground","narrow_path","curb","gate"],failure_case_count:3,privacy_processed_percentage:67,license_type:"commercial_non_exclusive",recommended_use_cases:["Navigation Model Training","Obstacle Avoidance Research","Last-mile Delivery Optimization"],price_placeholder:"Contact for Pricing 联系询价",status:"available"},
 {product_id:"PKG-2026-002",product_name:"Terrain Crossing Challenge Set V1",product_name_cn:"地形通行挑战数据集 V1",product_type:"terrain_crossing_dataset",description:"聚焦轮足机器人在复杂地形上的通行能力数据。",included_asset_ids:["BDP-2026-000002","BDP-2026-000004","BDP-2026-000007"],total_hours:0.5,total_distance_meters:385,total_size_gb:26,scene_count:3,terrain_tags:["slope","stairs","flat_road","brick_road","wet_ground"],failure_case_count:2,privacy_processed_percentage:100,license_type:"commercial_non_exclusive",recommended_use_cases:["Terrain Traversability Analysis","Wheel-Legged Control Research","Robot Locomotion Benchmark"],price_placeholder:"Contact for Pricing 联系询价",status:"available"},
 {product_id:"PKG-2026-003",product_name:"Failure & Takeover Analysis Set V1",product_name_cn:"失败与接管分析数据集 V1",product_type:"failure_case_dataset",description:"收录多种失败场景和人工接管案例，适用于安全评测和人机交互研究。",included_asset_ids:["BDP-2026-000004","BDP-2026-000005","BDP-2026-000007","BDP-2026-000009"],total_hours:0.93,total_distance_meters:805,total_size_gb:31.6,scene_count:4,terrain_tags:["stairs","flat_road","narrow_path","brick_road","wet_ground","gate"],failure_case_count:4,privacy_processed_percentage:75,license_type:"commercial_non_exclusive",recommended_use_cases:["Safety Evaluation","Failure Mode Analysis","Human-Robot Interaction Research"],price_placeholder:"Contact for Pricing 联系询价",status:"available"},
+];
+
+const MOCK_FILES=[
+{id:"FILE-001",file_name:"2026-05-15_CR-001_delivery_poststation_to_bldg3.mp4",file_size_gb:12.5,content_type:"video/mp4",asset_id:"BDP-2026-000001",collector_id:"CR-001",recorded_at:"2026-05-15T09:30:00Z",upload_status:"uploaded",storage_location:"oss://beaver-data/2026/05/15/",sha256:"a3f2b8c1d4e5..."},
+{id:"FILE-002",file_name:"2026-05-16_CR-002_slope_test_cuiyuan4.mp4",file_size_gb:8.2,content_type:"video/mp4",asset_id:"BDP-2026-000002",collector_id:"CR-002",recorded_at:"2026-05-16T14:00:00Z",upload_status:"uploaded",storage_location:"oss://beaver-data/2026/05/16/",sha256:"b7e1a9d3f6c2..."},
+{id:"FILE-003",file_name:"2026-05-18_CR-001_crowded_plaza_delivery.mp4",file_size_gb:15.3,content_type:"video/mp4",asset_id:"BDP-2026-000003",collector_id:"CR-001",recorded_at:"2026-05-18T10:15:00Z",upload_status:"uploaded",storage_location:"oss://beaver-data/2026/05/18/",sha256:"c4d8e2f7a1b3..."},
+{id:"FILE-004",file_name:"2026-05-20_CR-002_stairs_failure_bldg2.mp4",file_size_gb:6.8,content_type:"video/mp4",asset_id:"BDP-2026-000004",collector_id:"CR-002",recorded_at:"2026-05-20T16:45:00Z",upload_status:"uploaded",storage_location:"oss://beaver-data/2026/05/20/",sha256:"d9f3b1e8c5a7..."},
+{id:"FILE-005",file_name:"2026-05-22_CR-003_escooter_blocked_takeover.mp4",file_size_gb:18.6,content_type:"video/mp4",asset_id:"BDP-2026-000005",collector_id:"CR-003",recorded_at:"2026-05-22T11:20:00Z",upload_status:"uploaded",storage_location:"oss://beaver-data/2026/05/22/",sha256:"e2a6c4d8f1b9..."},
+{id:"FILE-006",file_name:"2026-06-10_CR-001_morning_route_campus.mp4",file_size_gb:14.1,content_type:"video/mp4",asset_id:"",collector_id:"CR-001",recorded_at:"2026-06-10T08:30:00Z",upload_status:"local",storage_location:"D:\\raw_data\\2026-06-10\\CR-001\\",sha256:""},
+{id:"FILE-007",file_name:"2026-06-10_CR-002_afternoon_rain_delivery.mp4",file_size_gb:11.3,content_type:"video/mp4",asset_id:"",collector_id:"CR-002",recorded_at:"2026-06-10T14:20:00Z",upload_status:"uploading",storage_location:"D:\\raw_data\\2026-06-10\\CR-002\\",sha256:"",upload_progress:68},
+{id:"FILE-008",file_name:"2026-06-09_CR-004_night_patrol_park.mp4",file_size_gb:9.7,content_type:"video/mp4",asset_id:"",collector_id:"CR-004",recorded_at:"2026-06-09T21:00:00Z",upload_status:"local",storage_location:"D:\\raw_data\\2026-06-09\\CR-004\\",sha256:""},
 ];
 
 /* ============================================================
@@ -464,6 +478,80 @@ const ProductPackagesPage=({assets,onViewAsset})=>{
   </div>;
 };
 
+
+/* ============================================================
+   PAGE 6: FILE UPLOAD & MANAGEMENT
+   ============================================================ */
+const FileUploadPage=({assets,files,setFiles})=>{
+  const [dragActive,setDragActive]=useState(false);
+  const [tab,setTab]=useState("upload");
+  const totalGB=files.reduce((s,f)=>s+f.file_size_gb,0).toFixed(1);
+  const uploaded=files.filter(f=>f.upload_status==="uploaded").length;
+  const local=files.filter(f=>f.upload_status==="local").length;
+  const uploading=files.filter(f=>f.upload_status==="uploading").length;
+  const linked=files.filter(f=>f.asset_id).length;
+  const STATUS_C={uploaded:COLORS.success,uploading:COLORS.info,local:COLORS.warning,failed:COLORS.error};
+  const STATUS_L={uploaded:"OSS",uploading:"Uploading...",local:"Local SD",failed:"Failed"};
+  const handleDrop=(e)=>{e.preventDefault();setDragActive(false);const dt=e.dataTransfer;if(dt.files&&dt.files.length>0){const newFiles=Array.from(dt.files).map((f,i)=>({id:"FILE-NEW-"+Date.now()+"-"+i,file_name:f.name,file_size_gb:parseFloat((f.size/1073741824).toFixed(2)),content_type:f.type||"video/mp4",asset_id:"",collector_id:"",recorded_at:new Date().toISOString(),upload_status:"local",storage_location:"Local Browser",sha256:""}));setFiles(prev=>[...newFiles,...prev]);}};
+  const handleFileSelect=(e)=>{if(e.target.files&&e.target.files.length>0){const newFiles=Array.from(e.target.files).map((f,i)=>({id:"FILE-NEW-"+Date.now()+"-"+i,file_name:f.name,file_size_gb:parseFloat((f.size/1073741824).toFixed(2)),content_type:f.type||"video/mp4",asset_id:"",collector_id:"",recorded_at:new Date().toISOString(),upload_status:"local",storage_location:"Local Browser",sha256:""}));setFiles(prev=>[...newFiles,...prev]);}};
+  const simulateUpload=(fileId)=>{setFiles(prev=>prev.map(f=>f.id===fileId?{...f,upload_status:"uploading",upload_progress:0}:f));let p=0;const iv=setInterval(()=>{p+=Math.random()*15+5;if(p>=100){clearInterval(iv);setFiles(prev=>prev.map(f=>f.id===fileId?{...f,upload_status:"uploaded",upload_progress:100,storage_location:"oss://beaver-data/"+new Date().toISOString().slice(0,10).replace(/-/g,"/"),sha256:"sim_"+Math.random().toString(36).slice(2,14)}:f));}else{setFiles(prev=>prev.map(f=>f.id===fileId?{...f,upload_progress:Math.min(Math.round(p),99)}:f));}},300);};
+  const linkFile=(fileId,assetId)=>{setFiles(prev=>prev.map(f=>f.id===fileId?{...f,asset_id:assetId}:f));};
+  const removeFile=(fileId)=>{setFiles(prev=>prev.filter(f=>f.id!==fileId));};
+  return <div>
+    <h1 style={{fontSize:24,fontWeight:700,color:COLORS.text,margin:0}}>File Management 文件管理</h1>
+    <p style={{fontSize:14,color:COLORS.textSecondary,marginTop:4}}>管理配送视频文件的上传、存储和资产关联</p>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16,margin:"20px 0"}}>
+      <StatCard icon="harddrive" label="Total Files 总文件" value={files.length} color={COLORS.primary} sub={totalGB+" GB"}/>
+      <StatCard icon="checkcircle" label="On OSS 已上云" value={uploaded} color={COLORS.success}/>
+      <StatCard icon="folder" label="Local 待上传" value={local} color={COLORS.warning}/>
+      <StatCard icon="link" label="Linked 已关联" value={linked} color={COLORS.info} sub={"of "+files.length}/>
+    </div>
+    <div style={{display:"flex",gap:0,marginBottom:16}}>
+      {["upload","files"].map(t=><button key={t} onClick={()=>setTab(t)} style={{padding:"10px 24px",borderRadius:"8px 8px 0 0",border:`1px solid ${COLORS.border}`,borderBottom:"none",backgroundColor:tab===t?"#fff":"#F8FAFC",color:tab===t?COLORS.primary:COLORS.textSecondary,fontSize:14,fontWeight:tab===t?600:400,cursor:"pointer"}}>{t==="upload"?"Upload 上传":"Files 文件列表"}</button>)}
+    </div>
+    {tab==="upload"&&<Card style={{borderRadius:"0 12px 12px 12px"}}>
+      <div onDragEnter={()=>setDragActive(true)} onDragOver={e=>e.preventDefault()} onDragLeave={()=>setDragActive(false)} onDrop={handleDrop} style={{border:`2px dashed ${dragActive?COLORS.primary:COLORS.border}`,borderRadius:12,padding:48,textAlign:"center",backgroundColor:dragActive?"#EEF2FF":"#FAFBFC",transition:"all 0.2s",cursor:"pointer",marginBottom:24}} onClick={()=>document.getElementById("file-input-hidden").click()}>
+        <input id="file-input-hidden" type="file" multiple accept="video/*,.mp4,.mov,.avi,.mkv" style={{display:"none"}} onChange={handleFileSelect}/>
+        <Icon name="upload" size={48} color={dragActive?COLORS.primary:COLORS.textMuted} strokeWidth={1.5}/>
+        <div style={{fontSize:18,fontWeight:600,color:COLORS.text,marginTop:16}}>拖拽视频文件到这里</div>
+        <div style={{fontSize:14,color:COLORS.textSecondary,marginTop:8}}>或点击选择文件 · 支持 MP4 / MOV / AVI / MKV</div>
+        <div style={{fontSize:12,color:COLORS.textMuted,marginTop:12}}>单次最多选择 10 个文件，每个文件最大 10 GB</div>
+      </div>
+      <div style={{borderTop:`1px solid ${COLORS.border}`,paddingTop:20}}>
+        <div style={{fontSize:15,fontWeight:600,marginBottom:12,display:"flex",alignItems:"center",gap:8}}><Icon name="folder" size={18} color={COLORS.primary}/>Batch Upload 批量上传</div>
+        <div style={{backgroundColor:"#F8FAFC",borderRadius:8,padding:16,fontSize:13,color:COLORS.textSecondary,lineHeight:1.8}}>
+          <div style={{marginBottom:8}}>站点电脑批量上传流程：</div>
+          <div>1. 快递员回到站点，将 SD 卡视频拷贝到 <code style={{backgroundColor:"#E2E8F0",padding:"1px 6px",borderRadius:4}}>D:\raw_data\YYYY-MM-DD\CR-XXX\</code></div>
+          <div>2. 站点电脑运行上传客户端（V0.2 提供），自动扫描新文件并上传到 OSS</div>
+          <div>3. 上传完成后，在平台上将视频文件关联到对应的数据资产</div>
+          <div style={{marginTop:8,color:COLORS.textMuted}}>V0.1 原型阶段：可通过上方拖拽区域模拟文件上传。文件仅存储在浏览器会话中，刷新页面后清除。</div>
+        </div>
+      </div>
+    </Card>}
+    {tab==="files"&&<Card style={{padding:0,borderRadius:"0 12px 12px 12px",overflow:"auto"}}>
+      <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+        <thead><tr>
+          <th style={{padding:"10px 12px",textAlign:"left",fontSize:12,fontWeight:600,color:COLORS.textSecondary,borderBottom:`2px solid ${COLORS.border}`,backgroundColor:"#F8FAFC"}}>File Name</th>
+          <th style={{padding:"10px 12px",textAlign:"right",fontSize:12,fontWeight:600,color:COLORS.textSecondary,borderBottom:`2px solid ${COLORS.border}`,backgroundColor:"#F8FAFC"}}>Size</th>
+          <th style={{padding:"10px 12px",textAlign:"center",fontSize:12,fontWeight:600,color:COLORS.textSecondary,borderBottom:`2px solid ${COLORS.border}`,backgroundColor:"#F8FAFC"}}>Collector</th>
+          <th style={{padding:"10px 12px",textAlign:"center",fontSize:12,fontWeight:600,color:COLORS.textSecondary,borderBottom:`2px solid ${COLORS.border}`,backgroundColor:"#F8FAFC"}}>Status</th>
+          <th style={{padding:"10px 12px",textAlign:"center",fontSize:12,fontWeight:600,color:COLORS.textSecondary,borderBottom:`2px solid ${COLORS.border}`,backgroundColor:"#F8FAFC"}}>Linked Asset</th>
+          <th style={{padding:"10px 12px",textAlign:"center",fontSize:12,fontWeight:600,color:COLORS.textSecondary,borderBottom:`2px solid ${COLORS.border}`,backgroundColor:"#F8FAFC"}}>Action</th>
+        </tr></thead>
+        <tbody>{files.map(f=><tr key={f.id} style={{borderBottom:`1px solid ${COLORS.border}`}}>
+          <td style={{padding:"10px 12px"}}><div style={{display:"flex",alignItems:"center",gap:8}}><Icon name="video" size={16} color={COLORS.textMuted}/><div><div style={{fontSize:12,fontWeight:500,maxWidth:280,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.file_name}</div><div style={{fontSize:11,color:COLORS.textMuted}}>{f.recorded_at?new Date(f.recorded_at).toLocaleDateString("zh-CN"):""}</div></div></div></td>
+          <td style={{padding:"10px 12px",textAlign:"right",fontWeight:500}}>{f.file_size_gb} GB</td>
+          <td style={{padding:"10px 12px",textAlign:"center",fontSize:12}}>{f.collector_id||"—"}</td>
+          <td style={{padding:"10px 12px",textAlign:"center"}}>{f.upload_status==="uploading"?<div style={{display:"flex",alignItems:"center",gap:6,justifyContent:"center"}}><div style={{width:60,height:6,borderRadius:3,backgroundColor:"#E2E8F0",overflow:"hidden"}}><div style={{width:(f.upload_progress||0)+"%",height:6,borderRadius:3,backgroundColor:COLORS.info,transition:"width 0.3s"}}/></div><span style={{fontSize:11,color:COLORS.info}}>{f.upload_progress||0}%</span></div>:<Badge color={STATUS_C[f.upload_status]||COLORS.textMuted}>{STATUS_L[f.upload_status]||f.upload_status}</Badge>}</td>
+          <td style={{padding:"10px 12px",textAlign:"center"}}>{f.asset_id?<Sel value={f.asset_id} onChange={v=>linkFile(f.id,v)} options={assets.map(a=>({value:a.asset_id,label:a.asset_id+" "+a.asset_name.slice(0,12)}))} style={{fontSize:11,minWidth:160,padding:"4px 8px"}}/>:<Sel value="" onChange={v=>linkFile(f.id,v)} options={[{value:"",label:"— Link Asset —"},...assets.map(a=>({value:a.asset_id,label:a.asset_id}))]} style={{fontSize:11,minWidth:140,padding:"4px 8px"}}/>}</td>
+          <td style={{padding:"10px 12px",textAlign:"center"}}><div style={{display:"flex",gap:4,justifyContent:"center"}}>{f.upload_status==="local"&&<Btn variant="ghost" onClick={()=>simulateUpload(f.id)} style={{padding:"4px 8px",fontSize:11}}><Icon name="upload" size={13}/> Upload</Btn>}<Btn variant="ghost" onClick={()=>removeFile(f.id)} style={{padding:"4px 8px",fontSize:11,color:COLORS.error}}><Icon name="xcircle" size={13}/></Btn></div></td>
+        </tr>)}</tbody>
+      </table>
+      {files.length===0&&<div style={{padding:40,textAlign:"center",color:COLORS.textMuted}}>No files yet. Upload videos using the Upload tab.</div>}
+    </Card>}
+  </div>;
+};
+
 /* ============================================================
    MAIN APP
    ============================================================ */
@@ -471,6 +559,7 @@ function BeaverDataEngine(){
   const [page,setPage]=useState("dashboard");
   const [viewAssetId,setViewAssetId]=useState(null);
   const [assets,setAssets]=useState(MOCK_ASSETS);
+  const [files,setFiles]=useState(MOCK_FILES);
   useEffect(()=>{var ls=document.getElementById('loading-screen');if(ls)ls.style.display='none';},[]);
   const handleView=(id)=>{setViewAssetId(id);setPage("passport");};
   const handleBack=()=>{setViewAssetId(null);setPage("list");};
@@ -481,7 +570,8 @@ function BeaverDataEngine(){
   const currentAsset=viewAssetId?assets.find(a=>a.asset_id===viewAssetId):null;
   const renderPage=()=>{
     if(page==="passport"&&currentAsset)return <AssetPassportPage asset={currentAsset} onBack={handleBack}/>;
-    switch(page){case "dashboard":return <DashboardPage assets={assets}/>;case "list":return <AssetListPage assets={assets} onViewAsset={handleView}/>;case "create":return <CreateAssetPage onSubmit={handleCreate}/>;case "packages":return <ProductPackagesPage assets={assets} onViewAsset={handleView}/>;default:return <DashboardPage assets={assets}/>;}
+    switch(page){case "dashboard":return <DashboardPage assets={assets}/>;case "list":return <AssetListPage assets={assets} onViewAsset={handleView}/>;case "create":return <CreateAssetPage onSubmit={handleCreate}/>;case "packages":return <ProductPackagesPage assets={assets} onViewAsset={handleView}/>;
+    case "files":return <FileUploadPage assets={assets} files={files} setFiles={setFiles}/>;default:return <DashboardPage assets={assets}/>;}
   };
   return <div style={{display:"flex",minHeight:"100vh",backgroundColor:COLORS.bg,fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif"}}>
     <Sidebar activePage={page==="passport"?"list":page} onNavigate={p=>{setPage(p);if(p!=="passport")setViewAssetId(null);}}/>
