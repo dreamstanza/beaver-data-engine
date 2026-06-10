@@ -4,11 +4,9 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Beaver Data Engine V0.1 — 小狸数据资产引擎</title>
-<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/prop-types@15/prop-types.min.js"></script>
-<script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script crossorigin src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background:#F1F5F9;overflow:hidden;}
@@ -16,13 +14,30 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica N
 ::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:3px;}
 ::-webkit-scrollbar-track{background:transparent;}
 select,input,textarea,button{font-family:inherit;}
+#loading-screen{position:fixed;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;background:#F1F5F9;z-index:9999;flex-direction:column;gap:16px;}
+#loading-screen .spinner{width:40px;height:40px;border:4px solid #E2E8F0;border-top:4px solid #4F46E5;border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loading-screen .text{color:#64748B;font-size:14px;}
+#error-screen{display:none;position:fixed;top:0;left:0;right:0;bottom:0;padding:40px;background:#FEF2F2;z-index:9999;overflow:auto;}
+#error-screen h2{color:#EF4444;margin-bottom:12px;}
+#error-screen pre{background:#fff;padding:16px;border-radius:8px;border:1px solid #FECACA;overflow:auto;font-size:13px;color:#333;white-space:pre-wrap;}
 </style>
 </head>
 <body>
+<div id="loading-screen"><div class="spinner"></div><div class="text">Loading Beaver Data Engine...</div></div>
+<div id="error-screen"><h2>Page Load Error</h2><pre id="error-msg"></pre></div>
 <div id="root"></div>
+<script>
+window.addEventListener('error', function(e) {
+  var ls = document.getElementById('loading-screen');
+  if(ls) ls.style.display = 'none';
+  var el = document.getElementById('error-screen');
+  el.style.display = 'block';
+  document.getElementById('error-msg').textContent = e.message + '\n' + (e.filename||'') + ':' + (e.lineno||'') + (e.error ? '\n' + e.error.stack : '');
+});
+</script>
 <script type="text/babel" data-presets="react">
 const {useState, useMemo, useEffect} = React;
-const {BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid} = Recharts;
 
 /* ============================================================
    SVG ICON SYSTEM (replaces lucide-react)
@@ -66,6 +81,65 @@ const Icon = ({name, size=24, color="currentColor", style:{...extraStyle}={}, st
   const d = ICONS[name];
   if(!d) return null;
   return React.createElement('svg',{width:size,height:size,viewBox:d.vb,fill:"none",stroke:color,strokeWidth,strokeLinecap:"round",strokeLinejoin:"round",style:extraStyle,...rest,dangerouslySetInnerHTML:{__html:d.body}});
+};
+
+/* ============================================================
+   CSS CHART COMPONENTS (pure CSS, no external dependency)
+   ============================================================ */
+const HorizontalBarChart = ({data, color="#4F46E5"}) => {
+  const maxVal = Math.max(...data.map(d=>d.value), 1);
+  return <div style={{display:"flex",flexDirection:"column",gap:8,padding:"8px 0"}}>
+    {data.map((d,i)=>(
+      <div key={i} style={{display:"flex",alignItems:"center",gap:8}}>
+        <div style={{width:120,fontSize:11,color:"#64748B",textAlign:"right",flexShrink:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}} title={d.name}>{d.name}</div>
+        <div style={{flex:1,backgroundColor:"#F1F5F9",borderRadius:4,height:22}}>
+          <div style={{width:`${(d.value/maxVal)*100}%`,backgroundColor:d.color||color,height:22,borderRadius:4,transition:"width 0.5s ease",minWidth:2}}/>
+        </div>
+        <div style={{width:30,fontSize:13,fontWeight:600,color:"#334155",textAlign:"right"}}>{d.value}</div>
+      </div>
+    ))}
+  </div>;
+};
+const VerticalBarChart = ({data, color="#10B981"}) => {
+  const maxVal = Math.max(...data.map(d=>d.count||d.value), 1);
+  return <div>
+    <div style={{display:"flex",alignItems:"flex-end",gap:12,height:180,padding:"8px 0",borderBottom:"2px solid #E2E8F0"}}>
+      {data.map((d,i)=>{
+        const v = d.count||d.value;
+        return <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+          <div style={{fontSize:13,fontWeight:600,color:"#334155"}}>{v}</div>
+          <div style={{width:"100%",maxWidth:50,height:`${(v/maxVal)*140}px`,backgroundColor:d.color||color,borderRadius:"4px 4px 0 0",transition:"height 0.5s ease",minHeight:2}}/>
+        </div>;
+      })}
+    </div>
+    <div style={{display:"flex",gap:12,paddingTop:6}}>
+      {data.map((d,i)=><div key={i} style={{flex:1,textAlign:"center",fontSize:11,color:"#64748B"}}>{d.name}</div>)}
+    </div>
+  </div>;
+};
+const SimplePieChart = ({data}) => {
+  const total = data.reduce((s,d)=>s+d.value,0);
+  if(total===0) return <div style={{textAlign:"center",color:"#94A3B8",padding:40}}>No data</div>;
+  let cumulative = 0;
+  const segments = data.map(d=>{
+    const start = cumulative/total*360;
+    cumulative += d.value;
+    const end = cumulative/total*360;
+    return {start, end, color: d.color, name: d.name, value: d.value, pct: Math.round(d.value/total*100)};
+  });
+  const gradient = segments.map(s=>`${s.color} ${s.start}deg ${s.end}deg`).join(", ");
+  return <div style={{display:"flex",alignItems:"center",gap:24}}>
+    <div style={{width:160,height:160,borderRadius:"50%",background:`conic-gradient(${gradient})`,flexShrink:0,position:"relative"}}>
+      <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:80,height:80,borderRadius:"50%",backgroundColor:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:700,color:"#334155"}}>{total}</div>
+    </div>
+    <div style={{display:"flex",flexDirection:"column",gap:6}}>
+      {segments.map((s,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:8,fontSize:12}}>
+        <div style={{width:12,height:12,borderRadius:3,backgroundColor:s.color,flexShrink:0}}/>
+        <span style={{color:"#334155"}}>{s.name}</span>
+        <span style={{color:"#94A3B8",fontWeight:600}}>{s.value} ({s.pct}%)</span>
+      </div>)}
+    </div>
+  </div>;
 };
 
 /* ============================================================
@@ -204,12 +278,12 @@ const DashboardPage=({assets})=>{
       <StatCard icon="star" label="Avg Quality 平均质量" value={avgQ} color={COLORS.primary} sub="/100"/>
     </div>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
-      <Card><SecTitle icon="mappin">By Scene 按场景分布</SecTitle><ResponsiveContainer width="100%" height={220}><BarChart data={byLoc} layout="vertical" margin={{left:20}}><CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0"/><XAxis type="number" tick={{fontSize:12}}/><YAxis type="category" dataKey="name" tick={{fontSize:11}} width={140}/><Tooltip/><Bar dataKey="value" fill={COLORS.primary} radius={[0,4,4,0]} barSize={20}/></BarChart></ResponsiveContainer></Card>
-      <Card><SecTitle icon="layers">By Terrain 按地形分布</SecTitle><ResponsiveContainer width="100%" height={220}><BarChart data={byTerrain} layout="vertical" margin={{left:20}}><CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0"/><XAxis type="number" tick={{fontSize:12}}/><YAxis type="category" dataKey="name" tick={{fontSize:11}} width={140}/><Tooltip/><Bar dataKey="value" fill="#8B5CF6" radius={[0,4,4,0]} barSize={20}/></BarChart></ResponsiveContainer></Card>
+      <Card><SecTitle icon="mappin">By Scene 按场景分布</SecTitle><HorizontalBarChart data={byLoc} color={COLORS.primary}/></Card>
+      <Card><SecTitle icon="layers">By Terrain 按地形分布</SecTitle><HorizontalBarChart data={byTerrain} color="#8B5CF6"/></Card>
     </div>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
-      <Card><SecTitle icon="checkcircle">By Result 按任务结果</SecTitle><ResponsiveContainer width="100%" height={220}><PieChart><Pie data={byResult} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({name,value})=>`${name}: ${value}`}>{byResult.map((e,i)=><Cell key={i} fill={e.color||CHART_COLORS[i%CHART_COLORS.length]}/>)}</Pie><Tooltip/></PieChart></ResponsiveContainer></Card>
-      <Card><SecTitle icon="barchart">Quality Distribution 质量评分</SecTitle><ResponsiveContainer width="100%" height={220}><BarChart data={qDist} margin={{bottom:10}}><CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0"/><XAxis dataKey="name" tick={{fontSize:11}}/><YAxis tick={{fontSize:12}}/><Tooltip/><Bar dataKey="count" fill={COLORS.success} radius={[4,4,0,0]} barSize={40} name="Assets"/></BarChart></ResponsiveContainer></Card>
+      <Card><SecTitle icon="checkcircle">By Result 按任务结果</SecTitle><SimplePieChart data={byResult}/></Card>
+      <Card><SecTitle icon="barchart">Quality Distribution 质量评分</SecTitle><VerticalBarChart data={qDist} color={COLORS.success}/></Card>
     </div>
   </div>;
 };
@@ -381,6 +455,7 @@ function BeaverDataEngine(){
   const [page,setPage]=useState("dashboard");
   const [viewAssetId,setViewAssetId]=useState(null);
   const [assets,setAssets]=useState(MOCK_ASSETS);
+  useEffect(()=>{var ls=document.getElementById('loading-screen');if(ls)ls.style.display='none';},[]);
   const handleView=(id)=>{setViewAssetId(id);setPage("passport");};
   const handleBack=()=>{setViewAssetId(null);setPage("list");};
   const handleCreate=(formData)=>{
