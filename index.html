@@ -55,6 +55,18 @@ setTimeout(function(){
 const {useState, useMemo, useEffect, useCallback} = React;
 
 /* ============================================================
+   FEATURE FLAGS (V0.3)
+   ============================================================ */
+const EDITION = "team"; // "team" | "founder"
+const FF = {
+  vlnPage: true, trainingPage: true, packagesPage: true,
+  businessNotes: EDITION === "founder",
+  commercialPricing: EDITION === "founder",
+  blockchainDetails: EDITION === "founder",
+  salesStrategy: EDITION === "founder",
+};
+
+/* ============================================================
    SVG ICON SYSTEM
    ============================================================ */
 const _ic = (vb, body) => ({vb, body});
@@ -103,6 +115,7 @@ const ICONS = {
   refresh: _ic("0 0 24 24",'<polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>'),
   flag: _ic("0 0 24 24",'<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>'),
   zap: _ic("0 0 24 24",'<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>'),
+  brain: _ic("0 0 24 24",'<path d="M12 2C8.13 2 5 5.13 5 9c0 2.38 1.19 4.47 3 5.74V17a2 2 0 002 2h4a2 2 0 002-2v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.87-3.13-7-7-7z"/><line x1="9" y1="21" x2="15" y2="21"/><line x1="10" y1="24" x2="14" y2="24"/>'),
 };
 const Icon = ({name, size=24, color="currentColor", style:extraStyle={}, strokeWidth=2, ...rest}) => {
   const d = ICONS[name];
@@ -260,18 +273,106 @@ const DATA_ACCESS_LEVELS=[{value:"restricted",label:"Restricted 限制"},{value:
 const BUYER_TYPES=[{value:"robotics_company",label:"Robotics Company 机器人公司"},{value:"logistics_company",label:"Logistics Company 物流公司"},{value:"research_lab",label:"Research Lab 研究实验室"},{value:"investor",label:"Investor 投资方"},{value:"government",label:"Government 政府"},{value:"property_operator",label:"Property Operator 物业运营"}];
 const DELIVERY_FORMATS=[{value:"metadata_only",label:"Metadata Only 仅元数据"},{value:"processed_video",label:"Processed Video 处理后视频"},{value:"annotation_json",label:"Annotation JSON 标注数据"},{value:"report",label:"Report 报告"},{value:"full_package",label:"Full Package 完整包"}];
 
+/* === V0.3: VLN Data Structure Constants === */
+const ASPECT_RATIOS=[
+  {value:"16:9",label:"16:9 Landscape 横屏（推荐）",w:16,h:9},
+  {value:"9:16",label:"9:16 Portrait 竖屏",w:9,h:16},
+  {value:"1:1",label:"1:1 Square 方形",w:1,h:1},
+  {value:"4:3",label:"4:3 Standard",w:4,h:3},
+  {value:"custom",label:"Custom 自定义",w:0,h:0},
+];
+const OBS_TYPES=[{value:"rgb",label:"RGB Camera"},{value:"depth",label:"Depth Camera"},{value:"lidar",label:"LiDAR"},{value:"imu",label:"IMU"},{value:"odometry",label:"Odometry"}];
+const OBS_L_VLN={rgb:"RGB",depth:"Depth",lidar:"LiDAR",imu:"IMU",odometry:"Odometry"};
+const GOAL_TYPES=[{value:"position",label:"Position 位置目标"},{value:"object",label:"Object 物体目标"},{value:"room",label:"Room 房间目标"}];
+const INSTR_STYLES=[{value:"route",label:"Route 路线式"},{value:"goal",label:"Goal 目标式"},{value:"dialog",label:"Dialog 对话式"},{value:"high_level",label:"High-Level 高层指令"}];
+const INSTR_GRAN=[{value:"fine",label:"Fine 细粒度"},{value:"medium",label:"Medium 中粒度"},{value:"coarse",label:"Coarse 粗粒度"}];
+const TRAIN_SPLITS=[{value:"train",label:"Train 训练集",c:"#4F46E5",target:70},{value:"val_seen",label:"Val Seen 已见验证",c:"#10B981",target:10},{value:"val_unseen",label:"Val Unseen 未见验证",c:"#F59E0B",target:10},{value:"test",label:"Test 测试集",c:"#EF4444",target:10}];
+const ANNO_METHODS=[{value:"human",label:"Human 人工"},{value:"llm_assisted",label:"LLM-Assisted AI辅助"},{value:"code_generated",label:"Code-Generated 代码生成"},{value:"mixed",label:"Mixed 混合"}];
+const PATH_TYPES=[{value:"human_expert",label:"Human Expert 人类专家"},{value:"planner_shortest",label:"Shortest Path 最短路径"},{value:"safe_path",label:"Safe Path 安全路径"}];
+const DIFF_LEVELS=[{value:"easy",label:"Easy 简单",c:"#10B981"},{value:"medium",label:"Medium 中等",c:"#F59E0B"},{value:"hard",label:"Hard 困难",c:"#EF4444"}];
+
+const VLN_LAYERS=[
+  {id:1,name:"Environment",cn:"环境",icon:"globe",color:"#4F46E5",files:["env_meta.json","camera_intrinsics.json","sensor_extrinsics.json"],fields:["env_id","camera_focal_length","recording_width","recording_height","aspect_ratio"]},
+  {id:2,name:"Map & Topology",cn:"地图拓扑",icon:"map",color:"#8B5CF6",files:["occupancy_map.png","semantic_map.json","topology_graph.json","object_annotations.json"],fields:["has_occupancy_map","has_semantic_map","has_topology_graph","topology_nodes","topology_edges"]},
+  {id:3,name:"Task",cn:"任务",icon:"target",color:"#06B6D4",files:["episode.json","instruction.json"],fields:["episode_count","goal_type","instruction_style","instruction_granularity"]},
+  {id:4,name:"Trajectory",cn:"轨迹",icon:"navigation",color:"#10B981",files:["trajectory.jsonl","observations/rgb/","observations/depth/","observations/lidar/"],fields:["observation_types","path_type"]},
+  {id:5,name:"Annotation",cn:"标注",icon:"edit",color:"#F59E0B",files:["events.jsonl","human_corrections.jsonl","result.json"],fields:["spl_score","navigation_error_m","num_events","num_human_corrections","annotation_method","difficulty"]},
+];
+
+const VLN_CHECKLIST=[
+  {key:"env_meta",label:"env_meta.json 环境元数据",layer:1},
+  {key:"camera_calib",label:"camera_intrinsics.json 相机标定",layer:1},
+  {key:"topology",label:"topology_graph.json 拓扑图",layer:2},
+  {key:"episode",label:"episode.json 任务定义",layer:3},
+  {key:"instruction",label:"instruction.json 自然语言指令",layer:3},
+  {key:"trajectory",label:"trajectory.jsonl 轨迹数据",layer:4},
+  {key:"rgb_obs",label:"RGB 观测帧",layer:4},
+  {key:"result",label:"result.json SPL 评估结果",layer:5},
+];
+
+const CAMERA_GUIDE=[
+  {t:"推荐画幅 Aspect Ratio",b:"16:9 横屏最接近机器人相机视角（60-90度水平FOV）。竖屏 9:16 仅适用于电梯内部等窄空间记录。"},
+  {t:"分辨率 Resolution",b:"最低 1920x1080 (1080p)。推荐 2704x1520 (2.7K) 以捕捉门把手、按键等细节。"},
+  {t:"帧率 Frame Rate",b:"步行导航 30fps 即可。台阶/斜坡等快速运动场景建议 60fps。"},
+  {t:"安装位置 Mount",b:"头顶前方或头盔前方安装，高度约 1.5-1.7m，最接近机器人视角。"},
+  {t:"校准 Calibration",b:"每次采集开始时录制 30 秒棋盘格校准序列。记录相机型号、焦距和畸变参数。"},
+  {t:"注意事项 Notes",b:"避免镜头直对阳光、运动模糊和雨滴。保持稳定步行节奏。"},
+];
+
 const TAGLINE = "不是存视频，而是把真实末端通行经验沉淀成机器人可学习、可评测、可授权的数据资产。";
 
 /* ============================================================
    LOCALSTORAGE PERSISTENCE
    ============================================================ */
-const STORAGE_KEY = 'beaver-v0.2-data';
+const STORAGE_KEY = 'beaver-v0.3-data';
+function migrateV03(assets) {
+  return assets.map(a => ({...a,
+    vln_dataset_version: a.vln_dataset_version || "1.0.0",
+    env_id: a.env_id || "",
+    aspect_ratio: a.aspect_ratio || "16:9",
+    recording_width: a.recording_width || (a.resolution ? parseInt(a.resolution.split("x")[0]) : 1920),
+    recording_height: a.recording_height || (a.resolution ? parseInt(a.resolution.split("x")[1]) : 1080),
+    episode_count: a.episode_count || 0,
+    topology_nodes: a.topology_nodes || 0,
+    topology_edges: a.topology_edges || 0,
+    has_occupancy_map: a.has_occupancy_map || false,
+    has_semantic_map: a.has_semantic_map || false,
+    has_topology_graph: a.has_topology_graph || false,
+    observation_types: a.observation_types || ["rgb"],
+    goal_type: a.goal_type || "position",
+    instruction_style: a.instruction_style || "route",
+    instruction_granularity: a.instruction_granularity || "medium",
+    spl_score: a.spl_score || null,
+    navigation_error_m: a.navigation_error_m || null,
+    training_split: a.training_split || "",
+    annotation_method: a.annotation_method || "human",
+    num_events: a.num_events || 0,
+    num_human_corrections: a.num_human_corrections || 0,
+    path_type: a.path_type || "human_expert",
+    difficulty: a.difficulty || "medium",
+    camera_focal_length: a.camera_focal_length || null,
+    camera_distortion: a.camera_distortion || null,
+  }));
+}
+
 function loadData(key, defaultData) {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      return parsed[key] !== undefined ? parsed[key] : defaultData;
+      if (parsed[key] !== undefined) {
+        if (key === "assets") return migrateV03(parsed[key]);
+        return parsed[key];
+      }
+    }
+    // Try migrating from V0.2
+    const oldStored = localStorage.getItem('beaver-v0.2-data');
+    if (oldStored) {
+      const oldParsed = JSON.parse(oldStored);
+      if (oldParsed[key] !== undefined) {
+        if (key === "assets") return migrateV03(oldParsed[key]);
+        return oldParsed[key];
+      }
     }
   } catch(e) { console.warn('localStorage read error:', e); }
   return defaultData;
@@ -381,11 +482,49 @@ const MOCK_FILES=[
 const MOCK_REPORTS=[
 {report_id:"RPT-001",report_name:"翠苑片区末端100米通行场景报告",report_type:"scene_report",linked_mission_ids:["MSN-V2-001","MSN-V2-004"],linked_route_ids:["RTE-001","RTE-002","RTE-004"],linked_asset_ids:["BDP-2026-000011","BDP-2026-000012","BDP-2026-000014","BDP-2026-000015"],generated_at:"2026-06-12T10:00:00Z",author:"系统自动生成",summary:"翠苑片区末端配送场景分析：覆盖驿站到小区门口、小区内楼栋通行、电梯使用等核心场景。门禁和电梯是两大核心障碍。",key_findings:["门禁刷卡失败率高","电梯等待时间不可控","电动车停放阻挡严重","雨天湿滑路面增加风险"],top_blockers:["gate_access","elevator_access","parked_ebike","rain_slippery_ground"],robot_passability_score:2.5,recommended_robot_capabilities:["门禁卡/二维码识别","电梯呼叫与乘坐","窄道通行（<0.6m）","湿滑路面防滑"],data_coverage:"4条路线,12个资产,总距离2.1km",privacy_status:"75%已处理",export_status:"ready"},
 {report_id:"RPT-002",report_name:"末端配送失败案例专题分析",report_type:"failure_analysis",linked_mission_ids:["MSN-V2-001","MSN-V2-004"],linked_route_ids:["RTE-001","RTE-004"],linked_asset_ids:["BDP-2026-000004","BDP-2026-000009","BDP-2026-000014","BDP-2026-000018"],generated_at:"2026-06-12T14:00:00Z",author:"系统自动生成",summary:"失败案例专题分析：收录台阶通行失败、门禁阻挡、电动车堵路、用户不在等典型失败场景。",key_findings:["门禁是TOP1失败原因","台阶通行需要轮足切换","用户不在导致交付失败","电动车停放是持续性障碍"],top_blockers:["gate_access","stairs","customer_unavailable","parked_ebike"],robot_passability_score:1.8,recommended_robot_capabilities:["自主门禁对接","台阶攀爬","智能等待与通知","窄道避障"],data_coverage:"4条路线,8个资产,失败率62%",privacy_status:"80%已处理",export_status:"ready"},
+];,
+
+/* === V0.3: MOCK ENVIRONMENTS === */
+const MOCK_ENVIRONMENTS=[
+{env_id:"ENV-CY-001",env_name:"翠苑四区",location_type:"residential_community",city:"杭州",area_sqm:45000,topology_nodes:32,topology_edges:58,has_occupancy_map:true,has_semantic_map:true,has_topology_graph:true,calibration_status:"verified",camera_intrinsics:{fx:910.5,fy:910.2,cx:960.0,cy:540.0},total_episodes:6,terrain_types:["flat_road","speed_bump","narrow_path","curb"],difficulty:"medium",notes:"数据最完整的采集环境，覆盖驿站到各楼栋全部路线"},
+{env_id:"ENV-CY-002",env_name:"翠苑六区",location_type:"residential_community",city:"杭州",area_sqm:38000,topology_nodes:24,topology_edges:42,has_occupancy_map:true,has_semantic_map:false,has_topology_graph:true,calibration_status:"field_calibrated",camera_intrinsics:{fx:908.3,fy:908.0,cx:960.0,cy:540.0},total_episodes:3,terrain_types:["flat_road","narrow_path","curb"],difficulty:"medium",notes:"电动车停放问题严重的居民小区"},
+{env_id:"ENV-XH-001",env_name:"西溪花园",location_type:"residential_community",city:"杭州",area_sqm:52000,topology_nodes:18,topology_edges:28,has_occupancy_map:false,has_semantic_map:false,has_topology_graph:true,calibration_status:"factory_calibrated",camera_intrinsics:{fx:912.1,fy:911.8,cx:960.0,cy:540.0},total_episodes:2,terrain_types:["flat_road","gate","slope"],difficulty:"hard",notes:"门禁系统复杂，多个出入口需要不同权限"},
+{env_id:"ENV-ZJU-001",env_name:"浙大紫金港",location_type:"campus",city:"杭州",area_sqm:120000,topology_nodes:45,topology_edges:82,has_occupancy_map:true,has_semantic_map:true,has_topology_graph:true,calibration_status:"verified",camera_intrinsics:{fx:915.0,fy:914.5,cx:960.0,cy:540.0},total_episodes:2,terrain_types:["flat_road","speed_bump","narrow_path","curb"],difficulty:"easy",notes:"校园场景路线较长，人流密集但路线相对规范"},
+{env_id:"ENV-FTC-001",env_name:"未来科技城",location_type:"industrial_park",city:"杭州",area_sqm:85000,topology_nodes:28,topology_edges:45,has_occupancy_map:true,has_semantic_map:true,has_topology_graph:true,calibration_status:"verified",camera_intrinsics:{fx:920.0,fy:919.5,cx:960.0,cy:540.0},total_episodes:2,terrain_types:["flat_road","speed_bump","curb","mixed_terrain"],difficulty:"easy",notes:"配备LiDAR采集设备，数据精度最高"},
+];
+
+/* === V0.3: MOCK EPISODES === */
+const MOCK_EPISODES=[
+{episode_id:"EP-001",env_id:"ENV-CY-001",asset_id:"BDP-2026-000001",goal:{type:"position",description:"从邮政驿站导航至3号楼门口"},instruction:{fine:"从驿站大门出发，沿主路向北走150米，右转进入小区内部道路，经过减速带后继续前行200米，在3号楼前左转到达单元门",medium:"从驿站到3号楼",coarse:"去3号楼"},trajectory_steps:240,path_length_m:450,duration_seconds:720,observation_types:["rgb","depth","imu","odometry"],path_type:"human_expert",spl_score:0.82,navigation_error_m:3.2,num_events:5,num_human_corrections:0,annotation_method:"human",difficulty:"medium",training_split:"train",aspect_ratio:"16:9",recording_width:1920,recording_height:1080,vln_completeness:{L1:100,L2:80,L3:100,L4:100,L5:80}},
+{episode_id:"EP-002",env_id:"ENV-CY-001",asset_id:"BDP-2026-000011",goal:{type:"position",description:"从驿站到翠苑四区正门"},instruction:{fine:"从驿站出发左转，沿人行道向东走300米，过斑马线后到达翠苑四区正门",medium:"驿站到四区正门",coarse:"去四区"},trajectory_steps:180,path_length_m:380,duration_seconds:540,observation_types:["rgb","imu","odometry"],path_type:"human_expert",spl_score:0.91,navigation_error_m:1.8,num_events:3,num_human_corrections:0,annotation_method:"llm_assisted",difficulty:"easy",training_split:"train",aspect_ratio:"16:9",recording_width:2704,recording_height:1520,vln_completeness:{L1:100,L2:60,L3:100,L4:80,L5:60}},
+{episode_id:"EP-003",env_id:"ENV-CY-001",asset_id:"BDP-2026-000012",goal:{type:"room",description:"从四区正门导航至6号楼单元门"},instruction:{fine:"从正门进入小区，沿花园小道向北走120米，绕过停放的电动车区域，左转进入6号楼通道，到达单元门",medium:"正门到6号楼",coarse:"去6号楼"},trajectory_steps:120,path_length_m:220,duration_seconds:360,observation_types:["rgb","imu"],path_type:"human_expert",spl_score:0.75,navigation_error_m:4.5,num_events:4,num_human_corrections:1,annotation_method:"human",difficulty:"medium",training_split:"train",aspect_ratio:"16:9",recording_width:2704,recording_height:1520,vln_completeness:{L1:80,L2:60,L3:100,L4:80,L5:60}},
+{episode_id:"EP-004",env_id:"ENV-CY-001",asset_id:"BDP-2026-000013",goal:{type:"room",description:"从大堂导航至6楼用户门口"},instruction:{fine:"进入大堂后右转找到电梯间，按下上行按钮等待电梯，进入电梯后按6层，出电梯左转走到602室门口",medium:"大堂到6楼",coarse:"上楼"},trajectory_steps:80,path_length_m:80,duration_seconds:480,observation_types:["rgb","imu"],path_type:"human_expert",spl_score:0.68,navigation_error_m:2.1,num_events:8,num_human_corrections:2,annotation_method:"human",difficulty:"hard",training_split:"val_seen",aspect_ratio:"16:9",recording_width:2704,recording_height:1520,vln_completeness:{L1:60,L2:40,L3:100,L4:60,L5:60}},
+{episode_id:"EP-005",env_id:"ENV-CY-001",asset_id:"BDP-2026-000003",goal:{type:"position",description:"通过活动广场到达配送点"},instruction:{fine:"从入口进入广场区域，注意避开行人和宠物，沿广场边缘向北走，穿过砖石路面到达目标楼栋",medium:"穿过广场到楼栋",coarse:"去广场那边"},trajectory_steps:300,path_length_m:380,duration_seconds:900,observation_types:["rgb","depth","imu","odometry"],path_type:"human_expert",spl_score:0.71,navigation_error_m:5.8,num_events:12,num_human_corrections:0,annotation_method:"mixed",difficulty:"hard",training_split:"train",aspect_ratio:"16:9",recording_width:1920,recording_height:1080,vln_completeness:{L1:100,L2:80,L3:80,L4:100,L5:60}},
+{episode_id:"EP-006",env_id:"ENV-CY-001",asset_id:"BDP-2026-000004",goal:{type:"position",description:"通过2号楼前台阶"},instruction:{fine:"从平路接近台阶，减速并在台阶前停下，切换到足式模式，逐级攀爬6级台阶，到达平台后切换回轮式",medium:"上台阶到平台",coarse:"上台阶"},trajectory_steps:70,path_length_m:85,duration_seconds:420,observation_types:["rgb","depth","imu","odometry"],path_type:"human_expert",spl_score:0.35,navigation_error_m:8.2,num_events:6,num_human_corrections:3,annotation_method:"human",difficulty:"hard",training_split:"train",aspect_ratio:"16:9",recording_width:1920,recording_height:1080,vln_completeness:{L1:100,L2:80,L3:100,L4:100,L5:100}},
+{episode_id:"EP-007",env_id:"ENV-CY-002",asset_id:"BDP-2026-000005",goal:{type:"position",description:"通过电动车密集停放区域"},instruction:{fine:"进入通道后发现两侧停放大量电动车，评估可通行宽度，如宽度大于0.8m则缓慢通过，否则需寻找替代路线",medium:"通过窄道",coarse:"穿过去"},trajectory_steps:140,path_length_m:150,duration_seconds:420,observation_types:["rgb","depth","imu"],path_type:"human_expert",spl_score:0.55,navigation_error_m:6.1,num_events:7,num_human_corrections:2,annotation_method:"human",difficulty:"hard",training_split:"train",aspect_ratio:"16:9",recording_width:1920,recording_height:1080,vln_completeness:{L1:80,L2:60,L3:80,L4:80,L5:60}},
+{episode_id:"EP-008",env_id:"ENV-CY-002",asset_id:"BDP-2026-000020",goal:{type:"position",description:"通过小区出入口高峰期人车混行区"},instruction:{fine:"接近出入口时减速，观察来往车辆和行人，等待安全间隙后快速通过，注意右侧电动车",medium:"安全通过出入口",coarse:"出门"},trajectory_steps:240,path_length_m:200,duration_seconds:720,observation_types:["rgb","imu","odometry"],path_type:"human_expert",spl_score:0.78,navigation_error_m:3.5,num_events:9,num_human_corrections:0,annotation_method:"llm_assisted",difficulty:"medium",training_split:"train",aspect_ratio:"16:9",recording_width:2704,recording_height:1520,vln_completeness:{L1:80,L2:40,L3:80,L4:80,L5:40}},
+{episode_id:"EP-009",env_id:"ENV-CY-002",asset_id:"BDP-2026-000006",goal:{type:"position",description:"夜间低光条件下导航配送"},instruction:{fine:"利用路灯和建筑照明导航，在光线不足区域降低速度，依靠深度传感器辅助避障",medium:"夜间配送到楼栋",coarse:"夜间去配送"},trajectory_steps:360,path_length_m:320,duration_seconds:1080,observation_types:["rgb","depth","imu"],path_type:"human_expert",spl_score:0.62,navigation_error_m:7.3,num_events:4,num_human_corrections:1,annotation_method:"human",difficulty:"medium",training_split:"val_unseen",aspect_ratio:"16:9",recording_width:1920,recording_height:1080,vln_completeness:{L1:80,L2:60,L3:80,L4:80,L5:40}},
+{episode_id:"EP-010",env_id:"ENV-XH-001",asset_id:"BDP-2026-000009",goal:{type:"position",description:"通过小区门禁系统"},instruction:{fine:"到达门禁前停下，使用二维码扫描器对准门禁面板，等待系统确认后推门通过",medium:"通过门禁",coarse:"进门"},trajectory_steps:120,path_length_m:100,duration_seconds:720,observation_types:["rgb","depth","imu"],path_type:"human_expert",spl_score:0.22,navigation_error_m:12.0,num_events:3,num_human_corrections:4,annotation_method:"human",difficulty:"hard",training_split:"train",aspect_ratio:"16:9",recording_width:1920,recording_height:1080,vln_completeness:{L1:80,L2:60,L3:80,L4:60,L5:60}},
+{episode_id:"EP-011",env_id:"ENV-XH-001",asset_id:"BDP-2026-000014",goal:{type:"position",description:"处理门禁刷卡失败场景"},instruction:{fine:"尝试刷卡，如失败则等待并寻找物业人员协助，记录失败原因和等待时间",medium:"处理门禁失败",coarse:"门禁坏了"},trajectory_steps:200,path_length_m:50,duration_seconds:600,observation_types:["rgb","imu"],path_type:"human_expert",spl_score:0.18,navigation_error_m:15.0,num_events:2,num_human_corrections:5,annotation_method:"human",difficulty:"hard",training_split:"val_seen",aspect_ratio:"16:9",recording_width:2704,recording_height:1520,vln_completeness:{L1:60,L2:40,L3:80,L4:60,L5:80}},
+{episode_id:"EP-012",env_id:"ENV-ZJU-001",asset_id:"BDP-2026-000010",goal:{type:"position",description:"校园内窄路避障配送到宿舍"},instruction:{fine:"从菜鸟驿站出发沿校园道路向北，注意避让自行车和电动车，通过减速带后进入宿舍区",medium:"驿站到宿舍",coarse:"去宿舍"},trajectory_steps:240,path_length_m:350,duration_seconds:720,observation_types:["rgb","depth","lidar","imu","odometry"],path_type:"human_expert",spl_score:0.88,navigation_error_m:2.5,num_events:6,num_human_corrections:0,annotation_method:"llm_assisted",difficulty:"easy",training_split:"train",aspect_ratio:"16:9",recording_width:1920,recording_height:1080,vln_completeness:{L1:100,L2:100,L3:100,L4:100,L5:80}},
+{episode_id:"EP-013",env_id:"ENV-ZJU-001",asset_id:"BDP-2026-000002",goal:{type:"position",description:"通过小区内15度斜坡"},instruction:{fine:"接近斜坡前减速，评估坡度是否在安全范围内，切换到低速模式后匀速上坡，到达坡顶后恢复正常速度",medium:"上斜坡",coarse:"爬坡"},trajectory_steps:160,path_length_m:120,duration_seconds:480,observation_types:["rgb","depth","imu","odometry"],path_type:"human_expert",spl_score:0.85,navigation_error_m:2.8,num_events:2,num_human_corrections:0,annotation_method:"code_generated",difficulty:"medium",training_split:"train",aspect_ratio:"16:9",recording_width:1920,recording_height:1080,vln_completeness:{L1:100,L2:80,L3:80,L4:100,L5:80}},
+{episode_id:"EP-014",env_id:"ENV-FTC-001",asset_id:"BDP-2026-000008",goal:{type:"position",description:"园区内长距离配送A栋到F栋"},instruction:{fine:"从A栋出发沿园区主路向南，经过B栋和C栋，在D栋处右转，沿内部道路到达F栋入口",medium:"A栋到F栋",coarse:"去F栋"},trajectory_steps:440,path_length_m:1200,duration_seconds:1320,observation_types:["rgb","depth","lidar","imu","odometry"],path_type:"planner_shortest",spl_score:0.95,navigation_error_m:1.2,num_events:8,num_human_corrections:0,annotation_method:"llm_assisted",difficulty:"easy",training_split:"test",aspect_ratio:"16:9",recording_width:1920,recording_height:1080,vln_completeness:{L1:100,L2:100,L3:100,L4:100,L5:80}},
+{episode_id:"EP-015",env_id:"ENV-FTC-001",asset_id:"BDP-2026-000007",goal:{type:"position",description:"雨天湿滑路面安全通行"},instruction:{fine:"检测到路面湿滑后降低最大速度至0.3m/s，增大跟车距离，在砖石路面坡道处特别减速",medium:"雨天安全通行",coarse:"慢点走"},trajectory_steps:300,path_length_m:180,duration_seconds:900,observation_types:["rgb","depth","imu","odometry"],path_type:"safe_path",spl_score:0.72,navigation_error_m:4.0,num_events:5,num_human_corrections:1,annotation_method:"human",difficulty:"medium",training_split:"val_unseen",aspect_ratio:"16:9",recording_width:1920,recording_height:1080,vln_completeness:{L1:100,L2:80,L3:80,L4:100,L5:80}},
 ];
 
 /* ============================================================
    HELPERS
    ============================================================ */
+function calcLayerCompleteness(entity, layer) {
+  if (!entity || !layer.fields) return 0;
+  const filled = layer.fields.filter(f => {
+    const v = entity[f];
+    if (v === null || v === undefined || v === "" || v === 0 || v === false) return false;
+    if (Array.isArray(v) && v.length === 0) return false;
+    return true;
+  });
+  return Math.round((filled.length / layer.fields.length) * 100);
+}
 const getLabel=(opts,val)=>{if(!opts||!val)return val||"—";const f=opts.find(o=>o.value===val);return f?f.label:val;};
 const fmtDur=s=>{if(!s)return"—";const m=Math.floor(s/60);return m>0?`${m}m ${s%60}s`:`${s}s`;};
 const fmtDist=m=>{if(!m)return"—";return m>=1000?`${(m/1000).toFixed(1)} km`:`${m} m`;};
@@ -419,36 +558,39 @@ const ConfirmDialog=({open,title,message,onConfirm,onCancel})=>{if(!open)return 
    SIDEBAR (V0.2 - 10 navigation items)
    ============================================================ */
 const Sidebar=({activePage,onNavigate})=>{
-  const items=[
+  const allItems=[
     {id:"dashboard",label:"Dashboard",cn:"驾驶舱",icon:"dashboard"},
     {id:"list",label:"Assets",cn:"资产列表",icon:"list"},
+    {id:"vln",label:"VLN Data",cn:"VLN数据",icon:"brain",flag:"vlnPage"},
+    {id:"training",label:"Training",cn:"训练管线",icon:"cpu",flag:"trainingPage"},
     {id:"missions",label:"Missions",cn:"采集任务",icon:"target"},
     {id:"collectors",label:"Collectors",cn:"采集员",icon:"users"},
     {id:"routes",label:"Routes",cn:"路线库",icon:"map"},
     {id:"privacy",label:"Privacy",cn:"合规授权",icon:"shield"},
     {id:"reports",label:"Reports",cn:"报告中心",icon:"clipboard"},
     {id:"create",label:"Create",cn:"创建资产",icon:"pluscircle"},
-    {id:"packages",label:"Packages",cn:"产品包",icon:"package"},
+    {id:"packages",label:"Packages",cn:"产品包",icon:"package",flag:"packagesPage"},
     {id:"files",label:"Files",cn:"文件管理",icon:"upload"},
   ];
+  const items = allItems.filter(it => !it.flag || FF[it.flag]);
   return <div style={{width:240,minHeight:"100vh",backgroundColor:COLORS.sidebar,display:"flex",flexDirection:"column",flexShrink:0}}>
     <div style={{padding:"24px 20px",borderBottom:"1px solid rgba(255,255,255,0.08)"}}>
       <div style={{display:"flex",alignItems:"center",gap:10}}>
         <div style={{width:36,height:36,borderRadius:10,background:`linear-gradient(135deg,${COLORS.primary},${COLORS.primaryLight})`,display:"flex",alignItems:"center",justifyContent:"center"}}><Icon name="database" size={18} color="#fff"/></div>
-        <div><div style={{fontSize:14,fontWeight:700,color:"#fff"}}>小狸 Last-100m</div><div style={{fontSize:11,color:"rgba(255,255,255,0.5)"}}>Passage Data Engine V0.2</div></div>
+        <div><div style={{fontSize:14,fontWeight:700,color:"#fff"}}>小狸 Last-100m</div><div style={{fontSize:11,color:"rgba(255,255,255,0.5)"}}>Passage Data Engine V0.3</div></div>
       </div>
     </div>
     <div style={{padding:"12px 10px",flex:1,overflowY:"auto"}}>
       {items.map(item=>{const active=activePage===item.id;return <button key={item.id} onClick={()=>onNavigate(item.id)} style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"9px 14px",borderRadius:8,border:"none",cursor:"pointer",marginBottom:3,backgroundColor:active?COLORS.primary:"transparent",color:active?"#fff":"rgba(255,255,255,0.6)",fontSize:13,fontWeight:active?600:400,textAlign:"left"}}><Icon name={item.icon} size={17}/><div><div>{item.label}</div><div style={{fontSize:10,opacity:0.7}}>{item.cn}</div></div></button>;})}
     </div>
-    <div style={{padding:"16px 20px",borderTop:"1px solid rgba(255,255,255,0.08)"}}><div style={{fontSize:11,color:"rgba(255,255,255,0.4)"}}>小狸科技 · Physical AI</div><div style={{fontSize:11,color:"rgba(255,255,255,0.3)",marginTop:2}}>2026 Q2 · V0.2 Prototype</div></div>
+    <div style={{padding:"16px 20px",borderTop:"1px solid rgba(255,255,255,0.08)"}}><div style={{fontSize:11,color:"rgba(255,255,255,0.4)"}}>小狸科技 · Physical AI</div><div style={{fontSize:11,color:"rgba(255,255,255,0.3)",marginTop:2}}>{"2026 Q3 \u00B7 V0.3 " + (EDITION === "founder" ? "Founder" : "Team")}</div></div>
   </div>;
 };
 
 /* ============================================================
    PAGE 1: DASHBOARD 业务驾驶舱 (V0.2)
    ============================================================ */
-const DashboardPage=({assets,missions,collectors,routes})=>{
+const DashboardPage=({assets,missions,collectors,routes,episodes=[],environments=[]})=>{
   const total=assets.length;
   const totalH=(assets.reduce((s,a)=>s+(a.duration_seconds||0),0)/3600).toFixed(1);
   const totalGB=assets.reduce((s,a)=>s+(a.data_size_gb||0),0).toFixed(1);
@@ -491,11 +633,17 @@ const DashboardPage=({assets,missions,collectors,routes})=>{
       <StatCard icon="checkcircle" label="标注完成 Annotation" value={`${annoPct}%`} color="#8B5CF6" sub={`${annoDone}/${total}`}/>
       <StatCard icon="star" label="平均质量 Avg Quality" value={avgQ} color={COLORS.primary} sub="/100"/>
     </div>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:20}}>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:12}}>
       <StatCard icon="database" label="总资产 Total Assets" value={total} color={COLORS.primary}/>
       <StatCard icon="clock" label="总时长 Total Hours" value={`${totalH}h`} color="#8B5CF6"/>
       <StatCard icon="harddrive" label="总数据量 Total Size" value={`${totalGB} GB`} color="#06B6D4"/>
     </div>
+    {FF.vlnPage&&<div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:12}}>
+      <StatCard icon="navigation" label="Episodes" value={episodes.length} color="#8B5CF6"/>
+      <StatCard icon="globe" label="Environments" value={environments.length} color="#06B6D4"/>
+      <StatCard icon="star" label="Avg SPL" value={episodes.length?((episodes.reduce((s,e)=>s+(e.spl_score||0),0)/episodes.length)*100).toFixed(0)+"%":"N/A"} color={COLORS.success}/>
+      <StatCard icon="layers" label="Train Split" value={episodes.filter(e=>e.training_split==="train").length} color={COLORS.primary} sub={"of "+episodes.length}/>
+    </div>}
 
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
       <Card><SecTitle icon="mappin">By Scene 按场景分布</SecTitle><HorizontalBarChart data={byLoc} color={COLORS.primary}/></Card>
@@ -505,6 +653,7 @@ const DashboardPage=({assets,missions,collectors,routes})=>{
       <Card><SecTitle icon="checkcircle">By Result 按任务结果</SecTitle><SimplePieChart data={byResult}/></Card>
       <Card><SecTitle icon="barchart">Quality Distribution 质量评分</SecTitle><VerticalBarChart data={qDist} color={COLORS.success}/></Card>
     </div>
+    {FF.vlnPage&&episodes.length>0&&<div style={{marginBottom:16}}><Card><SecTitle icon="layers">Split Distribution 训练数据划分</SecTitle><SimplePieChart data={TRAIN_SPLITS.map(s=>({name:s.label.split(" ")[0],value:episodes.filter(e=>e.training_split===s.value).length,color:s.c}))}/></Card></div>}
     {byBlocker.length>0&&<div style={{marginBottom:16}}><Card><SecTitle icon="alerttri">Top Blockers 高频卡点</SecTitle><HorizontalBarChart data={byBlocker} color={COLORS.error}/></Card></div>}
 
     <Card style={{marginTop:16}}>
@@ -576,6 +725,111 @@ const AssetListPage=({assets,onViewAsset})=>{
         </tr>)}</tbody>
       </table>
       {filtered.length===0&&<EmptyState icon="search" title="无匹配资产" message="尝试调整筛选条件或搜索关键词"/>}
+    </Card>
+  </div>;
+};
+
+/* ============================================================
+   PAGE 2B: VLN DATA PAGE (V0.3 NEW)
+   ============================================================ */
+const VLNDataPage=({environments,episodes,assets,setEpisodes})=>{
+  const [fEnv,setFEnv]=useState("");
+  const [fSplit,setFSplit]=useState("");
+  const [fDiff,setFDiff]=useState("");
+  const [expandedEnv,setExpandedEnv]=useState(null);
+  const totalEnvs=environments.length;
+  const totalEps=episodes.length;
+  const avgSPL=totalEps?((episodes.reduce((s,e)=>s+(e.spl_score||0),0)/totalEps)*100).toFixed(1):0;
+  const coveragePct=totalEps?(episodes.filter(e=>e.vln_completeness&&Object.values(e.vln_completeness).every(v=>v>=60)).length/totalEps*100).toFixed(0):0;
+  const filtered=useMemo(()=>{let r=[...episodes];if(fEnv)r=r.filter(e=>e.env_id===fEnv);if(fSplit)r=r.filter(e=>e.training_split===fSplit);if(fDiff)r=r.filter(e=>e.difficulty===fDiff);return r;},[episodes,fEnv,fSplit,fDiff]);
+  const envEpisodes=(envId)=>filtered.filter(e=>e.env_id===envId);
+  const changeSplit=(epId,newSplit)=>{setEpisodes(prev=>prev.map(e=>e.episode_id===epId?{...e,training_split:newSplit}:e));};
+  const FiveLayerBars=({entity})=><div style={{display:"flex",flexDirection:"column",gap:3}}>{VLN_LAYERS.map(l=>{const pct=entity&&entity.vln_completeness?entity.vln_completeness["L"+l.id]||0:0;return <div key={l.id} style={{display:"flex",alignItems:"center",gap:6}}><div style={{width:80,fontSize:10,color:COLORS.textSecondary,textAlign:"right"}}>{l.cn}</div><div style={{flex:1,height:6,backgroundColor:"#E2E8F0",borderRadius:3}}><div style={{height:6,borderRadius:3,backgroundColor:l.color,width:pct+"%",transition:"width 0.3s"}}/></div><div style={{width:30,fontSize:10,color:l.color,fontWeight:600,textAlign:"right"}}>{pct}%</div></div>;})}</div>;
+  const SplitBadge=({split})=>{const s=TRAIN_SPLITS.find(x=>x.value===split);return <Badge color={s?s.c:COLORS.textMuted}>{s?s.label.split(" ")[0]:split}</Badge>;};
+  return <div>
+    <h1 style={{fontSize:24,fontWeight:700,color:COLORS.text,margin:0}}>VLN Data 视觉语言导航数据</h1>
+    <p style={{fontSize:14,color:COLORS.textSecondary,marginTop:4,marginBottom:16}}>管理环境、Episode和5层数据结构完整性</p>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:16}}>
+      <StatCard icon="globe" label="环境数 Environments" value={totalEnvs} color={COLORS.primary}/>
+      <StatCard icon="navigation" label="Episode数 Episodes" value={totalEps} color="#8B5CF6"/>
+      <StatCard icon="star" label="平均SPL Avg SPL" value={avgSPL+"%"} color={COLORS.success}/>
+      <StatCard icon="checkcircle" label="数据覆盖 Coverage" value={coveragePct+"%"} color="#06B6D4"/>
+    </div>
+    <Card style={{marginBottom:16,padding:12}}>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+        <Sel value={fEnv} onChange={setFEnv} options={environments.map(e=>({value:e.env_id,label:e.env_name+" ("+e.env_id+")"}))} placeholder="环境 Environment"/>
+        <Sel value={fSplit} onChange={setFSplit} options={TRAIN_SPLITS.map(s=>({value:s.value,label:s.label}))} placeholder="Split 划分"/>
+        <Sel value={fDiff} onChange={setFDiff} options={DIFF_LEVELS.map(d=>({value:d.value,label:d.label}))} placeholder="难度 Difficulty"/>
+      </div>
+    </Card>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:16}}>
+      {environments.map(env=>{
+        const eps=envEpisodes(env.env_id);
+        const isExp=expandedEnv===env.env_id;
+        const d=DIFF_LEVELS.find(x=>x.value===env.difficulty);
+        return <Card key={env.env_id} style={{cursor:"pointer",padding:16}} onClick={()=>setExpandedEnv(isExp?null:env.env_id)}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+            <div><div style={{fontSize:15,fontWeight:700}}>{env.env_name}</div><div style={{fontSize:12,color:COLORS.textMuted,fontFamily:"monospace"}}>{env.env_id}</div></div>
+            <div style={{display:"flex",gap:6}}><Badge color={d?d.c:COLORS.textMuted}>{env.difficulty}</Badge><Badge color={COLORS.info}>{eps.length} eps</Badge></div>
+          </div>
+          <FiveLayerBars entity={{vln_completeness:{L1:env.has_topology_graph?100:env.has_occupancy_map?80:40,L2:env.has_topology_graph?100:env.has_occupancy_map?60:20,L3:eps.length>0?80:0,L4:eps.length>0?80:0,L5:eps.filter(e=>e.spl_score!==null).length>0?80:0}}} />
+          {isExp&&<div style={{marginTop:12,borderTop:"1px solid "+COLORS.border,paddingTop:12}} onClick={e=>e.stopPropagation()}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+              <thead><tr><th style={{padding:"6px 8px",textAlign:"left",fontSize:11,fontWeight:600,color:COLORS.textSecondary,borderBottom:"1px solid "+COLORS.border}}>Episode</th><th style={{padding:"6px 8px",textAlign:"left",fontSize:11,fontWeight:600,color:COLORS.textSecondary,borderBottom:"1px solid "+COLORS.border}}>Goal</th><th style={{padding:"6px 8px",textAlign:"center",fontSize:11,fontWeight:600,color:COLORS.textSecondary,borderBottom:"1px solid "+COLORS.border}}>Split</th><th style={{padding:"6px 8px",textAlign:"center",fontSize:11,fontWeight:600,color:COLORS.textSecondary,borderBottom:"1px solid "+COLORS.border}}>SPL</th><th style={{padding:"6px 8px",textAlign:"center",fontSize:11,fontWeight:600,color:COLORS.textSecondary,borderBottom:"1px solid "+COLORS.border}}>Diff</th><th style={{padding:"6px 8px",textAlign:"center",fontSize:11,fontWeight:600,color:COLORS.textSecondary,borderBottom:"1px solid "+COLORS.border}}>Obs</th><th style={{padding:"6px 8px",textAlign:"center",fontSize:11,fontWeight:600,color:COLORS.textSecondary,borderBottom:"1px solid "+COLORS.border}}>Anno</th></tr></thead>
+              <tbody>{eps.map(ep=>{const dd=DIFF_LEVELS.find(x=>x.value===ep.difficulty);return <tr key={ep.episode_id} style={{borderBottom:"1px solid "+COLORS.border}}><td style={{padding:"6px 8px",fontFamily:"monospace",color:COLORS.primary}}>{ep.episode_id}</td><td style={{padding:"6px 8px",maxWidth:120,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{ep.goal.description}</td><td style={{padding:"6px 8px",textAlign:"center"}}><select value={ep.training_split} onChange={e=>changeSplit(ep.episode_id,e.target.value)} style={{fontSize:10,padding:"2px 4px",borderRadius:4,border:"1px solid "+COLORS.border}}><option value="">--</option>{TRAIN_SPLITS.map(s=><option key={s.value} value={s.value}>{s.label.split(" ")[0]}</option>)}</select></td><td style={{padding:"6px 8px",textAlign:"center",fontWeight:600,color:ep.spl_score>=0.7?COLORS.success:ep.spl_score>=0.4?COLORS.warning:COLORS.error}}>{ep.spl_score?(ep.spl_score*100).toFixed(0)+"%":"-"}</td><td style={{padding:"6px 8px",textAlign:"center"}}><Badge color={dd?dd.c:COLORS.textMuted}>{ep.difficulty}</Badge></td><td style={{padding:"6px 8px",textAlign:"center",fontSize:10}}>{(ep.observation_types||[]).join(",")}</td><td style={{padding:"6px 8px",textAlign:"center",fontSize:10}}>{getLabel(ANNO_METHODS,ep.annotation_method)}</td></tr>;})}</tbody>
+            </table>
+            {eps.length===0&&<div style={{padding:12,textAlign:"center",color:COLORS.textMuted,fontSize:12}}>No episodes match current filters</div>}
+          </div>}
+        </Card>;
+      })}
+    </div>
+  </div>;
+};
+
+/* ============================================================
+   PAGE 2C: TRAINING PIPELINE PAGE (V0.3 NEW)
+   ============================================================ */
+const TrainingPipelinePage=({episodes,setEpisodes,environments,assets})=>{
+  const total=episodes.length;
+  const splitCounts=useMemo(()=>{const m={};TRAIN_SPLITS.forEach(s=>{m[s.value]=episodes.filter(e=>e.training_split===s.value).length;});return m;},[episodes]);
+  const pieData=TRAIN_SPLITS.map(s=>({name:s.label.split(" ")[0],value:splitCounts[s.value]||0,color:s.c}));
+  const autoBalance=()=>{const targets={};TRAIN_SPLITS.forEach(s=>{targets[s.value]=Math.round(total*s.target/100);});const unassigned=episodes.filter(e=>!e.training_split);const assigned=[...episodes].filter(e=>e.training_split);const newEps=[...episodes];TRAIN_SPLITS.forEach(s=>{const cur=splitCounts[s.value]||0;const need=targets[s.value]-cur;if(need>0){let added=0;for(let i=0;i<newEps.length&&added<need;i++){if(!newEps[i].training_split){newEps[i]={...newEps[i],training_split:s.value};added++;}}}});setEpisodes(newEps);};
+  const exportConfig=()=>{const config={version:"1.0.0",episodes:episodes.map(e=>({episode_id:e.episode_id,env_id:e.env_id,split:e.training_split,spl_score:e.spl_score,difficulty:e.difficulty}))};exportJSON(config,"split_config.json");};
+  const checklistStatus=useMemo(()=>{const result={};VLN_CHECKLIST.forEach(item=>{const layer=VLN_LAYERS.find(l=>l.id===item.layer);if(!layer){result[item.key]=false;return;}result[item.key]=episodes.some(e=>calcLayerCompleteness(e,layer)>0)||assets.some(a=>calcLayerCompleteness(a,layer)>0);});return result;},[episodes,assets]);
+  const readyCount=Object.values(checklistStatus).filter(Boolean).length;
+  const readyPct=Math.round(readyCount/VLN_CHECKLIST.length*100);
+  return <div>
+    <h1 style={{fontSize:24,fontWeight:700,color:COLORS.text,margin:0}}>Training Pipeline 训练管线</h1>
+    <p style={{fontSize:14,color:COLORS.textSecondary,marginTop:4,marginBottom:16}}>管理训练数据划分、均衡和导出</p>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:12,marginBottom:16}}>
+      <StatCard icon="database" label="总Episodes" value={total} color={COLORS.primary}/>
+      {TRAIN_SPLITS.map(s=><StatCard key={s.value} icon="layers" label={s.label.split(" ")[0]} value={splitCounts[s.value]||0} color={s.c} sub={"target "+s.target+"%"}/>)}
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
+      <Card><SecTitle icon="barchart">Split Distribution 数据划分分布</SecTitle><SimplePieChart data={pieData}/></Card>
+      <Card><SecTitle icon="activity">Actual vs Target 实际 vs 目标</SecTitle><div style={{display:"flex",flexDirection:"column",gap:10}}>{TRAIN_SPLITS.map(s=>{const actual=total?Math.round((splitCounts[s.value]||0)/total*100):0;return <div key={s.value} style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:80,fontSize:12,color:COLORS.textSecondary,textAlign:"right"}}>{s.label.split(" ")[0]}</div><div style={{flex:1,position:"relative",height:20,backgroundColor:"#F1F5F9",borderRadius:4}}><div style={{height:20,borderRadius:4,backgroundColor:s.c,opacity:0.3,width:s.target+"%",position:"absolute",top:0}}/><div style={{height:20,borderRadius:4,backgroundColor:s.c,width:actual+"%",position:"absolute",top:0}}/></div><div style={{width:60,fontSize:12,fontWeight:600,textAlign:"right"}}>{actual}%/{s.target}%</div></div>;})}</div>
+        <div style={{display:"flex",gap:8,marginTop:16}}>
+          <Btn onClick={autoBalance}><Icon name="zap" size={14}/> Auto-Balance 自动均衡</Btn>
+          <Btn variant="secondary" onClick={exportConfig}><Icon name="download" size={14}/> Export Config 导出配置</Btn>
+        </div>
+      </Card>
+    </div>
+    <Card style={{marginBottom:16,padding:0,overflow:"auto"}}>
+      <div style={{padding:"12px 16px",borderBottom:"1px solid "+COLORS.border,fontWeight:600,fontSize:14}}>Episode Assignment Episode划分管理</div>
+      <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+        <thead><tr><th style={{padding:"8px 10px",textAlign:"left",fontSize:11,fontWeight:600,color:COLORS.textSecondary,borderBottom:"2px solid "+COLORS.border,backgroundColor:"#F8FAFC"}}>Episode</th><th style={{padding:"8px 10px",textAlign:"left",fontSize:11,fontWeight:600,color:COLORS.textSecondary,borderBottom:"2px solid "+COLORS.border,backgroundColor:"#F8FAFC"}}>Environment</th><th style={{padding:"8px 10px",textAlign:"left",fontSize:11,fontWeight:600,color:COLORS.textSecondary,borderBottom:"2px solid "+COLORS.border,backgroundColor:"#F8FAFC"}}>Goal</th><th style={{padding:"8px 10px",textAlign:"center",fontSize:11,fontWeight:600,color:COLORS.textSecondary,borderBottom:"2px solid "+COLORS.border,backgroundColor:"#F8FAFC"}}>SPL</th><th style={{padding:"8px 10px",textAlign:"center",fontSize:11,fontWeight:600,color:COLORS.textSecondary,borderBottom:"2px solid "+COLORS.border,backgroundColor:"#F8FAFC"}}>Split Assignment</th></tr></thead>
+        <tbody>{episodes.map(ep=>{const env=environments.find(e=>e.env_id===ep.env_id);return <tr key={ep.episode_id} style={{borderBottom:"1px solid "+COLORS.border}}><td style={{padding:"8px 10px",fontFamily:"monospace",color:COLORS.primary}}>{ep.episode_id}</td><td style={{padding:"8px 10px"}}>{env?env.env_name:ep.env_id}</td><td style={{padding:"8px 10px",maxWidth:200,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{ep.goal.description}</td><td style={{padding:"8px 10px",textAlign:"center",fontWeight:600,color:ep.spl_score>=0.7?COLORS.success:COLORS.warning}}>{ep.spl_score?(ep.spl_score*100).toFixed(0)+"%":"-"}</td><td style={{padding:"8px 10px",textAlign:"center"}}><div style={{display:"flex",gap:4,justifyContent:"center",flexWrap:"wrap"}}>{TRAIN_SPLITS.map(s=><label key={s.value} style={{display:"flex",alignItems:"center",gap:3,fontSize:11,cursor:"pointer",padding:"2px 6px",borderRadius:4,backgroundColor:ep.training_split===s.value?s.c+"20":"transparent",border:"1px solid "+(ep.training_split===s.value?s.c:COLORS.border)}}><input type="radio" name={"split_"+ep.episode_id} checked={ep.training_split===s.value} onChange={()=>setEpisodes(prev=>prev.map(e=>e.episode_id===ep.episode_id?{...e,training_split:s.value}:e))} style={{display:"none"}}/><span style={{color:ep.training_split===s.value?s.c:COLORS.textMuted}}>{s.label.split(" ")[0]}</span></label>)}</div></td></tr>;})}</tbody>
+      </table>
+    </Card>
+    <Card>
+      <SecTitle icon="checkcircle">MVP Dataset Checklist 数据集检查清单</SecTitle>
+      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
+        <div style={{fontSize:28,fontWeight:700,color:readyPct>=80?COLORS.success:readyPct>=50?COLORS.warning:COLORS.error}}>{readyPct}%</div>
+        <div style={{fontSize:14,color:COLORS.textSecondary}}>Readiness 就绪度 ({readyCount}/{VLN_CHECKLIST.length})</div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+        {VLN_CHECKLIST.map(item=>{const pass=checklistStatus[item.key];const layer=VLN_LAYERS.find(l=>l.id===item.layer);return <div key={item.key} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px",backgroundColor:pass?"#F0FDF4":"#FEF2F2",borderRadius:6,border:"1px solid "+(pass?COLORS.success+"30":COLORS.error+"30")}}><Icon name={pass?"checkcircle":"xcircle"} size={14} color={pass?COLORS.success:COLORS.error}/><span style={{fontSize:12,flex:1}}>{item.label}</span><Badge color={layer?layer.color:COLORS.textMuted}>L{item.layer}</Badge></div>;})}
+      </div>
     </Card>
   </div>;
 };
@@ -999,8 +1253,8 @@ const ReportsPage=({reports,assets,routes,missions})=>{
 /* ============================================================
    PAGE 8: CREATE ASSET (V0.2 - Rights & Proof rename)
    ============================================================ */
-const STEPS=[{label:"Basic 基础",icon:"file"},{label:"Mission 任务",icon:"navigation"},{label:"Scene 场景",icon:"mappin"},{label:"Data 数据",icon:"harddrive"},{label:"Terrain 地形",icon:"layers"},{label:"Privacy 隐私",icon:"shield"},{label:"Quality 评分",icon:"star"},{label:"Rights & Proof 权属与存证",icon:"lock"}];
-const INIT_FORM={asset_name:"",asset_type:"mission_trajectory",description:"",status:"draft",mission_type:"last_100m_delivery",mission_goal:"",mission_result:"success",success_rate:100,start_time:"",end_time:"",duration_seconds:"",distance_meters:"",average_speed_mps:"",max_speed_mps:"",location_name:"",location_type:"residential_community",city:"",province:"",country:"China",robot_id:"",robot_model:"小狸轮足 V1",robot_type:"wheel_legged",payload_kg:"",battery_start_percent:"",battery_end_percent:"",hardware_version:"",software_version:"",operator_name:"",operation_mode:"autonomous",geo_privacy_level:"blurred",data_modalities:["rgb_video"],data_size_gb:"",video_duration_seconds:"",frame_rate:30,resolution:"1920x1080",file_format:"mp4",storage_url:"",sensor_rgb:true,sensor_depth:true,sensor_lidar:false,sensor_imu:true,sensor_gps:true,sensor_odom:true,sensor_mic:false,terrain_tags:[],weather:"sunny",lighting_condition:"daylight",crowd_density:"low",obstacle_tags:[],human_interaction:false,interaction_type:[],has_failure:false,failure_type:[],failure_description:"",failure_phase:"",takeover_count:0,takeover_duration_seconds:0,takeover_reason:"",recovery_success:true,annotation_status:"not_started",annotation_types:[],privacy_processed:false,privacy_processing_status:"not_started",privacy_methods:[],data_owner:"小狸科技",collection_permission:true,commercial_license_allowed:false,allowed_usage:["internal_training"],license_type:"internal_only",license_restrictions:"",expiration_date:"",data_quality_score:50,annotation_quality_score:0,privacy_score:50,commercial_value_score:50,rarity_score:50,video_clarity_score:50,route_completeness_score:50,sensor_completeness_score:50,metadata_completeness_score:50,privacy_compliance_score:50,camera_model:"",camera_mount_position:"head_front",camera_height_m:"",camera_tilt_deg:"",collector_id:"",collector_role:"courier",collector_experience_months:"",action_segments:[],scene_tags:[],blocker_tags:[],business_why:"",business_customer:"",business_gap:"",business_product:"",business_sales:"",business_priority:"medium",business_next:"",tokenization_status:"not_applicable",token_rights_type:"not_defined",transferability:"non_transferable",asset_hash:"",metadata_hash:""};
+const STEPS=[{label:"Basic 基础",icon:"file"},{label:"Mission 任务",icon:"navigation"},{label:"Scene 场景",icon:"mappin"},{label:"Data 数据",icon:"harddrive"},{label:"VLN & Camera",icon:"brain"},{label:"Terrain 地形",icon:"layers"},{label:"Privacy 隐私",icon:"shield"},{label:"Quality 评分",icon:"star"},{label:"Rights & Proof 权属与存证",icon:"lock"}];
+const INIT_FORM={asset_name:"",asset_type:"mission_trajectory",description:"",status:"draft",mission_type:"last_100m_delivery",mission_goal:"",mission_result:"success",success_rate:100,start_time:"",end_time:"",duration_seconds:"",distance_meters:"",average_speed_mps:"",max_speed_mps:"",location_name:"",location_type:"residential_community",city:"",province:"",country:"China",robot_id:"",robot_model:"小狸轮足 V1",robot_type:"wheel_legged",payload_kg:"",battery_start_percent:"",battery_end_percent:"",hardware_version:"",software_version:"",operator_name:"",operation_mode:"autonomous",geo_privacy_level:"blurred",data_modalities:["rgb_video"],data_size_gb:"",video_duration_seconds:"",frame_rate:30,resolution:"1920x1080",file_format:"mp4",storage_url:"",sensor_rgb:true,sensor_depth:true,sensor_lidar:false,sensor_imu:true,sensor_gps:true,sensor_odom:true,sensor_mic:false,terrain_tags:[],weather:"sunny",lighting_condition:"daylight",crowd_density:"low",obstacle_tags:[],human_interaction:false,interaction_type:[],has_failure:false,failure_type:[],failure_description:"",failure_phase:"",takeover_count:0,takeover_duration_seconds:0,takeover_reason:"",recovery_success:true,annotation_status:"not_started",annotation_types:[],privacy_processed:false,privacy_processing_status:"not_started",privacy_methods:[],data_owner:"小狸科技",collection_permission:true,commercial_license_allowed:false,allowed_usage:["internal_training"],license_type:"internal_only",license_restrictions:"",expiration_date:"",data_quality_score:50,annotation_quality_score:0,privacy_score:50,commercial_value_score:50,rarity_score:50,video_clarity_score:50,route_completeness_score:50,sensor_completeness_score:50,metadata_completeness_score:50,privacy_compliance_score:50,camera_model:"",camera_mount_position:"head_front",camera_height_m:"",camera_tilt_deg:"",collector_id:"",collector_role:"courier",collector_experience_months:"",action_segments:[],scene_tags:[],blocker_tags:[],business_why:"",business_customer:"",business_gap:"",business_product:"",business_sales:"",business_priority:"medium",business_next:"",tokenization_status:"not_applicable",token_rights_type:"not_defined",transferability:"non_transferable",asset_hash:"",metadata_hash:"",aspect_ratio:"16:9",recording_width:1920,recording_height:1080,goal_type:"position",instruction_style:"route",instruction_granularity:"medium",observation_types:["rgb"],difficulty:"medium",annotation_method:"human",training_split:""};
 
 const CreateAssetPage=({onSubmit})=>{
   const [step,setStep]=useState(0);const [form,setForm]=useState({...INIT_FORM});const up=(k,v)=>setForm(f=>({...f,[k]:v}));
@@ -1010,10 +1264,29 @@ const CreateAssetPage=({onSubmit})=>{
     case 1:return <div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}><FR label="Mission Type 任务类型"><Sel value={form.mission_type} onChange={v=>up("mission_type",v)} options={MISSION_TYPES} style={{width:"100%"}}/></FR><FR label="Mission Result"><Sel value={form.mission_result} onChange={v=>up("mission_result",v)} options={MISSION_RESULTS.map(r=>({value:r.value,label:r.label}))} style={{width:"100%"}}/></FR></div><FR label="Mission Goal 任务目标"><Inp value={form.mission_goal} onChange={v=>up("mission_goal",v)}/></FR><div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16}}><FR label="Success Rate %"><Inp type="number" value={form.success_rate} onChange={v=>up("success_rate",v)}/></FR><FR label="Duration (s)"><Inp type="number" value={form.duration_seconds} onChange={v=>up("duration_seconds",v)}/></FR><FR label="Distance (m)"><Inp type="number" value={form.distance_meters} onChange={v=>up("distance_meters",v)}/></FR></div></div>;
     case 2:return <div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}><FR label="Location Name 地点"><Inp value={form.location_name} onChange={v=>up("location_name",v)}/></FR><FR label="Location Type 场景类型"><Sel value={form.location_type} onChange={v=>up("location_type",v)} options={LOCATION_TYPES} style={{width:"100%"}}/></FR></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16}}><FR label="City 城市"><Inp value={form.city} onChange={v=>up("city",v)}/></FR><FR label="Province 省份"><Inp value={form.province} onChange={v=>up("province",v)}/></FR><FR label="Country 国家"><Inp value={form.country} onChange={v=>up("country",v)}/></FR></div><div style={{borderTop:`1px solid ${COLORS.border}`,paddingTop:16,marginTop:8}}><SecTitle icon="mappin">Scene & Blocker Tags 场景标签与卡点</SecTitle></div><FR label="Scene Tags 场景标签"><MultiCheck options={SCENE_TAGS.map(t=>({value:t,label:SCENE_L[t]||t}))} selected={form.scene_tags} onChange={v=>up("scene_tags",v)}/></FR><FR label="Blocker Tags 卡点标签"><MultiCheck options={BLOCKER_TAGS.map(t=>({value:t,label:BLOCKER_L[t]||t}))} selected={form.blocker_tags} onChange={v=>up("blocker_tags",v)}/></FR></div>;
     case 3:return <div><FR label="Sensor Config 传感器配置"><div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>{[{k:"sensor_rgb",l:"RGB"},{k:"sensor_depth",l:"Depth"},{k:"sensor_lidar",l:"LiDAR"},{k:"sensor_imu",l:"IMU"},{k:"sensor_gps",l:"GPS"},{k:"sensor_odom",l:"Odometry"},{k:"sensor_mic",l:"Mic"}].map(s=><label key={s.k} style={{display:"flex",alignItems:"center",gap:6,padding:"8px 12px",borderRadius:8,cursor:"pointer",backgroundColor:form[s.k]?"#EEF2FF":"#F8FAFC",border:`1px solid ${form[s.k]?COLORS.primary:COLORS.border}`,fontSize:13,color:form[s.k]?COLORS.primary:COLORS.textSecondary}}><input type="checkbox" checked={form[s.k]} onChange={e=>up(s.k,e.target.checked)} style={{display:"none"}}/>{s.l}</label>)}</div></FR><FR label="Data Modalities 数据模态"><MultiCheck options={MODALITIES.map(m=>({value:m,label:MOD_L[m]||m}))} selected={form.data_modalities} onChange={v=>up("data_modalities",v)}/></FR><div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16}}><FR label="Data Size (GB)"><Inp type="number" value={form.data_size_gb} onChange={v=>up("data_size_gb",v)}/></FR><FR label="Duration (s)"><Inp type="number" value={form.video_duration_seconds} onChange={v=>up("video_duration_seconds",v)}/></FR><FR label="Frame Rate"><Inp type="number" value={form.frame_rate} onChange={v=>up("frame_rate",v)}/></FR></div></div>;
-    case 4:return <div><FR label="Terrain Tags 地形标签"><MultiCheck options={TERRAIN_TAGS.map(t=>({value:t,label:TERRAIN_L[t]||t}))} selected={form.terrain_tags} onChange={v=>up("terrain_tags",v)}/></FR><div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16}}><FR label="Weather 天气"><Sel value={form.weather} onChange={v=>up("weather",v)} options={WEATHER_OPTS} style={{width:"100%"}}/></FR><FR label="Lighting 光照"><Sel value={form.lighting_condition} onChange={v=>up("lighting_condition",v)} options={LIGHT_OPTS} style={{width:"100%"}}/></FR><FR label="Crowd 人流"><Sel value={form.crowd_density} onChange={v=>up("crowd_density",v)} options={CROWD_OPTS.map(c=>({value:c.value,label:c.label}))} style={{width:"100%"}}/></FR></div><FR label="Obstacles 障碍物"><MultiCheck options={OBSTACLE_TAGS.map(t=>({value:t,label:OBS_L[t]||t}))} selected={form.obstacle_tags} onChange={v=>up("obstacle_tags",v)}/></FR><FR label="Failure 失败"><label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer"}}><input type="checkbox" checked={form.has_failure} onChange={e=>up("has_failure",e.target.checked)}/><span style={{fontSize:13}}>Has failure 存在失败</span></label></FR>{form.has_failure&&<><FR label="Failure Types 失败类型"><MultiCheck options={FAILURE_TYPES.map(t=>({value:t,label:FAIL_L[t]||t}))} selected={form.failure_type} onChange={v=>up("failure_type",v)}/></FR><FR label="Failure Phase 失败阶段"><Sel value={form.failure_phase} onChange={v=>up("failure_phase",v)} options={FAILURE_PHASES.map(t=>({value:t,label:FPHASE_L[t]||t}))} style={{width:"100%"}}/></FR><FR label="Description 描述"><TArea value={form.failure_description} onChange={v=>up("failure_description",v)}/></FR></>}</div>;
-    case 5:return <div><FR label="Annotation Status 标注状态"><Sel value={form.annotation_status} onChange={v=>up("annotation_status",v)} options={[{value:"not_started",label:"Not Started"},{value:"in_progress",label:"In Progress"},{value:"completed",label:"Completed"},{value:"reviewed",label:"Reviewed"}]} style={{width:"100%"}}/></FR><FR label="Privacy Processed 隐私处理"><label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer"}}><input type="checkbox" checked={form.privacy_processed} onChange={e=>up("privacy_processed",e.target.checked)}/><span style={{fontSize:13}}>已完成脱敏</span></label></FR>{form.privacy_processed&&<FR label="Privacy Methods 脱敏方法"><MultiCheck options={PRIV_METHODS} selected={form.privacy_methods} onChange={v=>up("privacy_methods",v)}/></FR>}<div style={{borderTop:`1px solid ${COLORS.border}`,paddingTop:16,marginTop:8}}><div style={{fontSize:14,fontWeight:600,marginBottom:12}}>License 权属与授权</div></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}><FR label="Data Owner 数据所有者"><Inp value={form.data_owner} onChange={v=>up("data_owner",v)}/></FR><FR label="License Type 授权类型"><Sel value={form.license_type} onChange={v=>up("license_type",v)} options={LIC_TYPES} style={{width:"100%"}}/></FR></div><FR label="Allowed Usage 允许用途"><MultiCheck options={USAGE_OPTS} selected={form.allowed_usage} onChange={v=>up("allowed_usage",v)}/></FR></div>;
-    case 6:return <div><div style={{fontSize:14,fontWeight:600,marginBottom:16}}>Quality Scores 质量评分 (0-100)</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}>{[{k:"data_quality_score",l:"Data Quality 综合质量"},{k:"video_clarity_score",l:"Video Clarity 视频清晰度"},{k:"route_completeness_score",l:"Route Completeness 路线完整度"},{k:"sensor_completeness_score",l:"Sensor Completeness 传感器完整度"},{k:"metadata_completeness_score",l:"Metadata 元数据完整度"},{k:"annotation_quality_score",l:"Annotation 标注质量"},{k:"privacy_compliance_score",l:"Privacy Compliance 隐私合规"},{k:"commercial_value_score",l:"Commercial Value 商业价值"},{k:"rarity_score",l:"Rarity 稀缺性"}].map(s=><div key={s.k} style={{marginBottom:12}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{fontSize:13,color:COLORS.textSecondary}}>{s.l}</span><span style={{fontSize:14,fontWeight:600,color:COLORS.primary}}>{form[s.k]}</span></div><input type="range" min="0" max="100" value={form[s.k]} onChange={e=>up(s.k,parseInt(e.target.value))} style={{width:"100%",accentColor:COLORS.primary}}/></div>)}</div><div style={{marginTop:16}}><Btn onClick={()=>{onSubmit(form);alert("Asset created! 创建成功！");setStep(0);setForm({...INIT_FORM});}} style={{padding:"12px 32px",fontSize:15,fontWeight:600}}><Icon name="checkcircle" size={18}/> Submit 提交</Btn></div></div>;
-    case 7:return <div><div style={{fontSize:14,fontWeight:600,marginBottom:16,display:"flex",alignItems:"center",gap:8}}><Icon name="lock" size={18} color={COLORS.primary}/>Rights & Proof 权属与存证 <Badge color={COLORS.info}>V0.2</Badge></div><p style={{fontSize:13,color:COLORS.textSecondary,marginBottom:16}}>记录数据资产的所有权、授权许可和存证信息，为未来商业化奠定基础。</p><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}><FR label="Rights Status 权属状态"><Sel value={form.tokenization_status} onChange={v=>up("tokenization_status",v)} options={TOKEN_STATUS} style={{width:"100%"}}/></FR><FR label="Rights Type 权属类型"><Sel value={form.token_rights_type} onChange={v=>up("token_rights_type",v)} options={TOKEN_RIGHTS} style={{width:"100%"}}/></FR></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}><FR label="Asset Hash 资产哈希"><Inp value={form.asset_hash} onChange={v=>up("asset_hash",v)} placeholder="sha256:..."/></FR><FR label="Metadata Hash 元数据哈希"><Inp value={form.metadata_hash} onChange={v=>up("metadata_hash",v)} placeholder="sha256:..."/></FR></div><div style={{marginTop:16}}><Btn onClick={()=>{onSubmit(form);alert("Asset created! 创建成功！");setStep(0);setForm({...INIT_FORM});}} style={{padding:"12px 32px",fontSize:15,fontWeight:600}}><Icon name="checkcircle" size={18}/> Submit 提交</Btn></div></div>;
+    case 4:return <div><SecTitle icon="brain">VLN & Camera Settings 视觉导航与相机设置</SecTitle>
+      <FR label="Aspect Ratio 画幅"><div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{ASPECT_RATIOS.map(ar=><button key={ar.value} onClick={()=>up("aspect_ratio",ar.value)} style={{padding:"8px 14px",borderRadius:8,border:"1px solid "+(form.aspect_ratio===ar.value?COLORS.primary:COLORS.border),backgroundColor:form.aspect_ratio===ar.value?"#EEF2FF":"#F8FAFC",color:form.aspect_ratio===ar.value?COLORS.primary:COLORS.textSecondary,fontSize:12,cursor:"pointer",fontWeight:form.aspect_ratio===ar.value?600:400}}>{ar.label}</button>)}</div></FR>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+        <FR label="Recording Width 录制宽度"><Inp type="number" value={form.recording_width} onChange={v=>up("recording_width",v)}/></FR>
+        <FR label="Recording Height 录制高度"><Inp type="number" value={form.recording_height} onChange={v=>up("recording_height",v)}/></FR>
+      </div>
+      <details style={{marginBottom:16}}><summary style={{cursor:"pointer",fontSize:13,fontWeight:500,color:COLORS.primary,marginBottom:8}}>Camera Guidelines 相机使用指南</summary><div style={{padding:12,backgroundColor:"#F8FAFC",borderRadius:8}}>{CAMERA_GUIDE.map((g,i)=><div key={i} style={{marginBottom:8}}><div style={{fontSize:13,fontWeight:600,color:COLORS.text}}>{g.t}</div><div style={{fontSize:12,color:COLORS.textSecondary,marginTop:2}}>{g.b}</div></div>)}</div></details>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16}}>
+        <FR label="Goal Type 目标类型"><Sel value={form.goal_type} onChange={v=>up("goal_type",v)} options={GOAL_TYPES} style={{width:"100%"}}/></FR>
+        <FR label="Instruction Style 指令风格"><Sel value={form.instruction_style} onChange={v=>up("instruction_style",v)} options={INSTR_STYLES} style={{width:"100%"}}/></FR>
+        <FR label="Granularity 粒度"><Sel value={form.instruction_granularity} onChange={v=>up("instruction_granularity",v)} options={INSTR_GRAN} style={{width:"100%"}}/></FR>
+      </div>
+      <FR label="Observation Types 观测类型"><MultiCheck options={OBS_TYPES} selected={form.observation_types} onChange={v=>up("observation_types",v)}/></FR>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16}}>
+        <FR label="Difficulty 难度"><Sel value={form.difficulty} onChange={v=>up("difficulty",v)} options={DIFF_LEVELS.map(d=>({value:d.value,label:d.label}))} style={{width:"100%"}}/></FR>
+        <FR label="Annotation Method 标注方式"><Sel value={form.annotation_method} onChange={v=>up("annotation_method",v)} options={ANNO_METHODS} style={{width:"100%"}}/></FR>
+        <FR label="Training Split 训练划分"><Sel value={form.training_split} onChange={v=>up("training_split",v)} options={TRAIN_SPLITS.map(s=>({value:s.value,label:s.label}))} placeholder="Optional" style={{width:"100%"}}/></FR>
+      </div>
+    </div>;
+    case 5:return <div><FR label="Terrain Tags 地形标签"><MultiCheck options={TERRAIN_TAGS.map(t=>({value:t,label:TERRAIN_L[t]||t}))} selected={form.terrain_tags} onChange={v=>up("terrain_tags",v)}/></FR><div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16}}><FR label="Weather 天气"><Sel value={form.weather} onChange={v=>up("weather",v)} options={WEATHER_OPTS} style={{width:"100%"}}/></FR><FR label="Lighting 光照"><Sel value={form.lighting_condition} onChange={v=>up("lighting_condition",v)} options={LIGHT_OPTS} style={{width:"100%"}}/></FR><FR label="Crowd 人流"><Sel value={form.crowd_density} onChange={v=>up("crowd_density",v)} options={CROWD_OPTS.map(c=>({value:c.value,label:c.label}))} style={{width:"100%"}}/></FR></div><FR label="Obstacles 障碍物"><MultiCheck options={OBSTACLE_TAGS.map(t=>({value:t,label:OBS_L[t]||t}))} selected={form.obstacle_tags} onChange={v=>up("obstacle_tags",v)}/></FR><FR label="Failure 失败"><label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer"}}><input type="checkbox" checked={form.has_failure} onChange={e=>up("has_failure",e.target.checked)}/><span style={{fontSize:13}}>Has failure 存在失败</span></label></FR>{form.has_failure&&<><FR label="Failure Types 失败类型"><MultiCheck options={FAILURE_TYPES.map(t=>({value:t,label:FAIL_L[t]||t}))} selected={form.failure_type} onChange={v=>up("failure_type",v)}/></FR><FR label="Failure Phase 失败阶段"><Sel value={form.failure_phase} onChange={v=>up("failure_phase",v)} options={FAILURE_PHASES.map(t=>({value:t,label:FPHASE_L[t]||t}))} style={{width:"100%"}}/></FR><FR label="Description 描述"><TArea value={form.failure_description} onChange={v=>up("failure_description",v)}/></FR></>}</div>;
+    case 6:return <div><FR label="Annotation Status 标注状态"><Sel value={form.annotation_status} onChange={v=>up("annotation_status",v)} options={[{value:"not_started",label:"Not Started"},{value:"in_progress",label:"In Progress"},{value:"completed",label:"Completed"},{value:"reviewed",label:"Reviewed"}]} style={{width:"100%"}}/></FR><FR label="Privacy Processed 隐私处理"><label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer"}}><input type="checkbox" checked={form.privacy_processed} onChange={e=>up("privacy_processed",e.target.checked)}/><span style={{fontSize:13}}>已完成脱敏</span></label></FR>{form.privacy_processed&&<FR label="Privacy Methods 脱敏方法"><MultiCheck options={PRIV_METHODS} selected={form.privacy_methods} onChange={v=>up("privacy_methods",v)}/></FR>}<div style={{borderTop:`1px solid ${COLORS.border}`,paddingTop:16,marginTop:8}}><div style={{fontSize:14,fontWeight:600,marginBottom:12}}>License 权属与授权</div></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}><FR label="Data Owner 数据所有者"><Inp value={form.data_owner} onChange={v=>up("data_owner",v)}/></FR><FR label="License Type 授权类型"><Sel value={form.license_type} onChange={v=>up("license_type",v)} options={LIC_TYPES} style={{width:"100%"}}/></FR></div><FR label="Allowed Usage 允许用途"><MultiCheck options={USAGE_OPTS} selected={form.allowed_usage} onChange={v=>up("allowed_usage",v)}/></FR></div>;
+    case 7:return <div><div style={{fontSize:14,fontWeight:600,marginBottom:16}}>Quality Scores 质量评分 (0-100)</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}>{[{k:"data_quality_score",l:"Data Quality 综合质量"},{k:"video_clarity_score",l:"Video Clarity 视频清晰度"},{k:"route_completeness_score",l:"Route Completeness 路线完整度"},{k:"sensor_completeness_score",l:"Sensor Completeness 传感器完整度"},{k:"metadata_completeness_score",l:"Metadata 元数据完整度"},{k:"annotation_quality_score",l:"Annotation 标注质量"},{k:"privacy_compliance_score",l:"Privacy Compliance 隐私合规"},{k:"commercial_value_score",l:"Commercial Value 商业价值"},{k:"rarity_score",l:"Rarity 稀缺性"}].map(s=><div key={s.k} style={{marginBottom:12}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{fontSize:13,color:COLORS.textSecondary}}>{s.l}</span><span style={{fontSize:14,fontWeight:600,color:COLORS.primary}}>{form[s.k]}</span></div><input type="range" min="0" max="100" value={form[s.k]} onChange={e=>up(s.k,parseInt(e.target.value))} style={{width:"100%",accentColor:COLORS.primary}}/></div>)}</div><div style={{marginTop:16}}><Btn onClick={()=>{onSubmit(form);alert("Asset created! 创建成功！");setStep(0);setForm({...INIT_FORM});}} style={{padding:"12px 32px",fontSize:15,fontWeight:600}}><Icon name="checkcircle" size={18}/> Submit 提交</Btn></div></div>;
+    case 8:return <div><div style={{fontSize:14,fontWeight:600,marginBottom:16,display:"flex",alignItems:"center",gap:8}}><Icon name="lock" size={18} color={COLORS.primary}/>Rights & Proof 权属与存证 <Badge color={COLORS.info}>V0.2</Badge></div><p style={{fontSize:13,color:COLORS.textSecondary,marginBottom:16}}>记录数据资产的所有权、授权许可和存证信息，为未来商业化奠定基础。</p><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}><FR label="Rights Status 权属状态"><Sel value={form.tokenization_status} onChange={v=>up("tokenization_status",v)} options={TOKEN_STATUS} style={{width:"100%"}}/></FR><FR label="Rights Type 权属类型"><Sel value={form.token_rights_type} onChange={v=>up("token_rights_type",v)} options={TOKEN_RIGHTS} style={{width:"100%"}}/></FR></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}><FR label="Asset Hash 资产哈希"><Inp value={form.asset_hash} onChange={v=>up("asset_hash",v)} placeholder="sha256:..."/></FR><FR label="Metadata Hash 元数据哈希"><Inp value={form.metadata_hash} onChange={v=>up("metadata_hash",v)} placeholder="sha256:..."/></FR></div><div style={{marginTop:16}}><Btn onClick={()=>{onSubmit(form);alert("Asset created! 创建成功！");setStep(0);setForm({...INIT_FORM});}} style={{padding:"12px 32px",fontSize:15,fontWeight:600}}><Icon name="checkcircle" size={18}/> Submit 提交</Btn></div></div>;
     default:return null;
   }};
   return <div>
@@ -1021,7 +1294,7 @@ const CreateAssetPage=({onSubmit})=>{
     <p style={{fontSize:14,color:COLORS.textSecondary,marginTop:4,marginBottom:20}}>录入一条新的末端100米通行数据资产</p>
     <div style={{display:"flex",gap:24}}>
       <div style={{width:200,flexShrink:0}}>{STEPS.map((s,i)=>{const active=i===step;const done=i<step;return <button key={i} onClick={()=>setStep(i)} style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"10px 12px",borderRadius:8,border:"none",cursor:"pointer",marginBottom:4,backgroundColor:active?"#EEF2FF":"transparent",color:active?COLORS.primary:done?COLORS.success:COLORS.textMuted,fontSize:13,fontWeight:active?600:400,textAlign:"left"}}><div style={{width:28,height:28,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",backgroundColor:active?COLORS.primary:done?COLORS.success:"#E2E8F0",color:"#fff",fontSize:12,fontWeight:600}}>{done?<Icon name="checkcircle" size={14} color="#fff"/>:(<span>{i+1}</span>)}</div><span>{s.label}</span></button>;})}</div>
-      <Card style={{flex:1,minWidth:0}}>{renderStep()}{step<7&&<div style={{display:"flex",justifyContent:"space-between",marginTop:24,paddingTop:16,borderTop:`1px solid ${COLORS.border}`}}><Btn variant="secondary" onClick={()=>setStep(s=>Math.max(s-1,0))} disabled={step===0}><Icon name="chevleft" size={16}/> Previous</Btn><Btn onClick={()=>setStep(s=>Math.min(s+1,7))}>Next <Icon name="chevright" size={16}/></Btn></div>}</Card>
+      <Card style={{flex:1,minWidth:0}}>{renderStep()}{step<8&&<div style={{display:"flex",justifyContent:"space-between",marginTop:24,paddingTop:16,borderTop:`1px solid ${COLORS.border}`}}><Btn variant="secondary" onClick={()=>setStep(s=>Math.max(s-1,0))} disabled={step===0}><Icon name="chevleft" size={16}/> Previous</Btn><Btn onClick={()=>setStep(s=>Math.min(s+1,8))}>Next <Icon name="chevright" size={16}/></Btn></div>}</Card>
     </div>
   </div>;
 };
@@ -1061,7 +1334,19 @@ const AssetPassportPage=({asset,onBack})=>{
     {(asset.scene_tags&&asset.scene_tags.length>0)||(asset.blocker_tags&&asset.blocker_tags.length>0)&&<Card style={{marginBottom:16}}><SecTitle icon="mappin">Scene & Blockers 场景与卡点</SecTitle>{asset.scene_tags&&asset.scene_tags.length>0&&<div style={{marginBottom:12}}><div style={{fontSize:12,color:COLORS.textSecondary,marginBottom:6}}>Scene Tags 场景标签</div><TagList tags={asset.scene_tags} labelMap={SCENE_L} maxShow={15}/></div>}{asset.blocker_tags&&asset.blocker_tags.length>0&&<div style={{marginBottom:12}}><div style={{fontSize:12,color:COLORS.textSecondary,marginBottom:6}}>Blocker Tags 卡点标签</div><TagList tags={asset.blocker_tags} labelMap={BLOCKER_L} maxShow={15}/></div>}{asset.failure_phase&&<II label="Failure Phase 失败阶段" value={getLabel(FAILURE_PHASES.map(t=>({value:t,label:FPHASE_L[t]})),asset.failure_phase)}/>}</Card>}
     <Card style={{marginBottom:16}}><SecTitle icon="alerttri">Failure & Takeover 失败与接管</SecTitle>{asset.has_failure?<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}><div><TagList tags={asset.failure_type} labelMap={FAIL_L} maxShow={10}/><div style={{marginTop:12,fontSize:12,color:COLORS.textSecondary,marginBottom:4}}>Description 描述</div><div style={{fontSize:13,color:COLORS.text,backgroundColor:"#FEF2F2",padding:12,borderRadius:8,borderLeft:`3px solid ${COLORS.error}`}}>{asset.failure_description}</div></div><div><II label="Takeover Count" value={asset.takeover_count}/><II label="Takeover Duration" value={fmtDur(asset.takeover_duration_seconds)}/><II label="Recovery" value={asset.recovery_success?"Success":"Failed"}/></div></div>:<div style={{padding:24,textAlign:"center",color:COLORS.textMuted,fontSize:14,backgroundColor:"#F8FAFC",borderRadius:8}}><Icon name="checkcircle" size={24} color={COLORS.success} style={{marginBottom:8}}/><div>No failure events. 本任务无失败事件。</div></div>}</Card>
     <Card style={{marginBottom:16}}><SecTitle icon="star">Quality Scores 质量评分明细</SecTitle><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,padding:"0 20px"}}>{scores.map(s=><ScoreBar key={s.l} score={s.s} label={s.l}/>)}</div>{asset.data_quality_issues&&asset.data_quality_issues.length>0&&<div style={{marginTop:12,padding:"0 20px"}}><div style={{fontSize:12,color:COLORS.warning,marginBottom:6}}>Quality Issues 质量问题</div><TagList tags={asset.data_quality_issues} labelMap={DQI_L} maxShow={12}/></div>}</Card>
-    {bn&&(bn.why_this_asset_matters||bn.customer_relevance||bn.robot_capability_gap||bn.sales_angle)&&<Card style={{marginBottom:16}}><SecTitle icon="flag">Business Notes 商业判断</SecTitle><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>{bn.why_this_asset_matters&&<div><div style={{fontSize:12,color:COLORS.textSecondary,marginBottom:4}}>Why This Matters 重要性</div><div style={{fontSize:13,backgroundColor:"#EEF2FF",padding:10,borderRadius:8}}>{bn.why_this_asset_matters}</div></div>}{bn.customer_relevance&&<div><div style={{fontSize:12,color:COLORS.textSecondary,marginBottom:4}}>Customer Relevance 客户价值</div><div style={{fontSize:13,backgroundColor:"#F0FDF4",padding:10,borderRadius:8}}>{bn.customer_relevance}</div></div>}{bn.robot_capability_gap&&<div><div style={{fontSize:12,color:COLORS.textSecondary,marginBottom:4}}>Robot Capability Gap 能力短板</div><div style={{fontSize:13,backgroundColor:"#FEF2F2",padding:10,borderRadius:8}}>{bn.robot_capability_gap}</div></div>}{bn.sales_angle&&<div><div style={{fontSize:12,color:COLORS.textSecondary,marginBottom:4}}>Sales Angle 销售角度</div><div style={{fontSize:13,backgroundColor:"#FFFBEB",padding:10,borderRadius:8}}>{bn.sales_angle}</div></div>}{bn.internal_priority&&<II label="Internal Priority 内部优先级" value={bn.internal_priority}/>} {bn.next_action&&<II label="Next Action 下一步" value={bn.next_action}/>}</div></Card>}
+    {FF.businessNotes&&bn&&(bn.why_this_asset_matters||bn.customer_relevance||bn.robot_capability_gap||bn.sales_angle)&&<Card style={{marginBottom:16}}><SecTitle icon="flag">Business Notes 商业判断</SecTitle><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>{bn.why_this_asset_matters&&<div><div style={{fontSize:12,color:COLORS.textSecondary,marginBottom:4}}>Why This Matters 重要性</div><div style={{fontSize:13,backgroundColor:"#EEF2FF",padding:10,borderRadius:8}}>{bn.why_this_asset_matters}</div></div>}{bn.customer_relevance&&<div><div style={{fontSize:12,color:COLORS.textSecondary,marginBottom:4}}>Customer Relevance 客户价值</div><div style={{fontSize:13,backgroundColor:"#F0FDF4",padding:10,borderRadius:8}}>{bn.customer_relevance}</div></div>}{bn.robot_capability_gap&&<div><div style={{fontSize:12,color:COLORS.textSecondary,marginBottom:4}}>Robot Capability Gap 能力短板</div><div style={{fontSize:13,backgroundColor:"#FEF2F2",padding:10,borderRadius:8}}>{bn.robot_capability_gap}</div></div>}{bn.sales_angle&&<div><div style={{fontSize:12,color:COLORS.textSecondary,marginBottom:4}}>Sales Angle 销售角度</div><div style={{fontSize:13,backgroundColor:"#FFFBEB",padding:10,borderRadius:8}}>{bn.sales_angle}</div></div>}{bn.internal_priority&&<II label="Internal Priority 内部优先级" value={bn.internal_priority}/>} {bn.next_action&&<II label="Next Action 下一步" value={bn.next_action}/>}</div></Card>}
+    {FF.vlnPage&&<Card style={{marginBottom:16}}><SecTitle icon="brain">VLN 5-Layer Data 视觉语言导航数据</SecTitle>
+      <div style={{marginBottom:16}}><div style={{display:"flex",flexDirection:"column",gap:4}}>{VLN_LAYERS.map(l=>{const pct=calcLayerCompleteness(asset,l);return <div key={l.id} style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:100,fontSize:12,color:COLORS.textSecondary,textAlign:"right"}}>{l.cn} {l.name}</div><div style={{flex:1,height:8,backgroundColor:"#E2E8F0",borderRadius:4}}><div style={{height:8,borderRadius:4,backgroundColor:l.color,width:pct+"%",transition:"width 0.3s"}}/></div><div style={{width:40,fontSize:12,fontWeight:600,color:l.color,textAlign:"right"}}>{pct}%</div></div>;})}</div></div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16}}>
+        <II label="Aspect Ratio 画幅" value={asset.aspect_ratio||"16:9"}/>
+        <II label="Training Split 训练划分" value={asset.training_split||"—"}/>
+        <II label="SPL Score" value={asset.spl_score!==null&&asset.spl_score!==undefined?(asset.spl_score*100).toFixed(1)+"%":"—"}/>
+        <II label="Nav Error 导航误差" value={asset.navigation_error_m!==null&&asset.navigation_error_m!==undefined?asset.navigation_error_m+"m":"—"}/>
+        <II label="Goal Type 目标类型" value={getLabel(GOAL_TYPES,asset.goal_type)}/>
+        <II label="Difficulty 难度" value={getLabel(DIFF_LEVELS,asset.difficulty)}/>
+        <II label="Observation Types 观测类型" value={(asset.observation_types||[]).join(", ")||"—"}/>
+      </div>
+    </Card>}
     <Card style={{marginBottom:16}}><SecTitle icon="shield">Privacy & Compliance 隐私与合规</SecTitle><div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16}}><II label="Privacy Processed" value={asset.privacy_processed?"Yes":"No"}/><II label="Risk Level" value={asset.privacy_risk_level||"low"}/><II label="Geo Privacy" value={getLabel(GEO_PRIV,asset.geo_privacy_level)}/><II label="Collection Permission" value={asset.collection_permission?"Granted":"No"}/></div>{asset.privacy_methods&&asset.privacy_methods.length>0&&<div style={{marginTop:8}}><div style={{fontSize:12,color:COLORS.textSecondary,marginBottom:6}}>Methods 脱敏方法</div><TagList tags={asset.privacy_methods} labelMap={Object.fromEntries(PRIV_METHODS.map(p=>[p.value,p.label]))} maxShow={10}/></div>}</Card>
     <Card><SecTitle icon="lock">Rights & Proof 权属与存证</SecTitle><div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16}}><II label="Status" value={getLabel(TOKEN_STATUS,asset.tokenization_status)}/><II label="Rights Type" value={getLabel(TOKEN_RIGHTS,asset.token_rights_type)}/><II label="License Type" value={getLabel(LIC_TYPES,asset.license_type)}/><II label="Owner" value={asset.data_owner}/></div></Card>
   </div>;
@@ -1201,7 +1486,7 @@ const FileUploadPage=({assets,files,setFiles})=>{
    ============================================================ */
 function BeaverDataEngine(){
   const _hp=window.location.hash.replace("#","");
-  const validPages=["dashboard","list","missions","collectors","routes","privacy","reports","create","packages","files","passport"];
+  const validPages=["dashboard","list","vln","training","missions","collectors","routes","privacy","reports","create","packages","files","passport"];
   const [page,setPage]=useState(validPages.includes(_hp)?_hp:"dashboard");
   const [viewAssetId,setViewAssetId]=useState(null);
 
@@ -1213,9 +1498,11 @@ function BeaverDataEngine(){
   const [routes,setRoutes]=useState(()=>loadData("routes",MOCK_ROUTES));
   const [reports,setReports]=useState(()=>loadData("reports",MOCK_REPORTS));
   const [products,setProducts]=useState(()=>loadData("products",MOCK_PRODUCTS));
+  const [environments,setEnvironments]=useState(()=>loadData("environments",MOCK_ENVIRONMENTS));
+  const [episodes,setEpisodes]=useState(()=>loadData("episodes",MOCK_EPISODES));
 
   // Save to localStorage on any change
-  useEffect(()=>{saveAllData({assets,files,missions,collectors,routes,reports,products});},[assets,files,missions,collectors,routes,reports,products]);
+  useEffect(()=>{saveAllData({assets,files,missions,collectors,routes,reports,products,environments,episodes});},[assets,files,missions,collectors,routes,reports,products,environments,episodes]);
   useEffect(()=>{var ls=document.getElementById('loading-screen');if(ls)ls.style.display='none';},[]);
 
   // Hash routing
@@ -1229,13 +1516,13 @@ function BeaverDataEngine(){
   const handleView=(id)=>{setViewAssetId(id);setPage("passport");};
   const handleBack=()=>{setViewAssetId(null);setPage("list");};
   const handleCreate=(formData)=>{
-    const newAsset={...formData,asset_id:`BDP-2026-${String(assets.length+1).padStart(6,"0")}`,created_at:new Date().toISOString(),updated_at:new Date().toISOString(),mission_id:`MSN-${Date.now()}`,start_time:formData.start_time||null,end_time:formData.end_time||null,duration_seconds:formData.duration_seconds?parseInt(formData.duration_seconds):0,distance_meters:formData.distance_meters?parseInt(formData.distance_meters):0,average_speed_mps:formData.average_speed_mps?parseFloat(formData.average_speed_mps):0,max_speed_mps:formData.max_speed_mps?parseFloat(formData.max_speed_mps):0,payload_kg:formData.payload_kg?parseFloat(formData.payload_kg):0,battery_start_percent:formData.battery_start_percent?parseInt(formData.battery_start_percent):0,battery_end_percent:formData.battery_end_percent?parseInt(formData.battery_end_percent):0,data_size_gb:formData.data_size_gb?parseFloat(formData.data_size_gb):0,video_duration_seconds:formData.video_duration_seconds?parseInt(formData.video_duration_seconds):0,frame_rate:formData.frame_rate?parseInt(formData.frame_rate):30,takeover_count:formData.takeover_count?parseInt(formData.takeover_count):0,takeover_duration_seconds:formData.takeover_duration_seconds?parseInt(formData.takeover_duration_seconds):0,gps_start_lat:0,gps_start_lng:0,gps_end_lat:0,gps_end_lng:0,sensor_config:{rgb_camera:formData.sensor_rgb,depth_camera:formData.sensor_depth,lidar:formData.sensor_lidar,imu:formData.sensor_imu,gps:formData.sensor_gps,wheel_odometry:formData.sensor_odom,microphone:formData.sensor_mic},sample_preview_url:"",camera_model:formData.camera_model||"",camera_mount_position:formData.camera_mount_position||"head_front",collector_id:formData.collector_id||"",collector_role:formData.collector_role||"courier",privacy_risk_level:"low",business_notes:{why_this_asset_matters:formData.business_why||"",customer_relevance:formData.business_customer||"",robot_capability_gap:formData.business_gap||"",product_implication:formData.business_product||"",sales_angle:formData.business_sales||"",internal_priority:formData.business_priority||"medium",next_action:formData.business_next||""}};
+    const newAsset={...formData,asset_id:`BDP-2026-${String(assets.length+1).padStart(6,"0")}`,created_at:new Date().toISOString(),updated_at:new Date().toISOString(),mission_id:`MSN-${Date.now()}`,start_time:formData.start_time||null,end_time:formData.end_time||null,duration_seconds:formData.duration_seconds?parseInt(formData.duration_seconds):0,distance_meters:formData.distance_meters?parseInt(formData.distance_meters):0,average_speed_mps:formData.average_speed_mps?parseFloat(formData.average_speed_mps):0,max_speed_mps:formData.max_speed_mps?parseFloat(formData.max_speed_mps):0,payload_kg:formData.payload_kg?parseFloat(formData.payload_kg):0,battery_start_percent:formData.battery_start_percent?parseInt(formData.battery_start_percent):0,battery_end_percent:formData.battery_end_percent?parseInt(formData.battery_end_percent):0,data_size_gb:formData.data_size_gb?parseFloat(formData.data_size_gb):0,video_duration_seconds:formData.video_duration_seconds?parseInt(formData.video_duration_seconds):0,frame_rate:formData.frame_rate?parseInt(formData.frame_rate):30,takeover_count:formData.takeover_count?parseInt(formData.takeover_count):0,takeover_duration_seconds:formData.takeover_duration_seconds?parseInt(formData.takeover_duration_seconds):0,gps_start_lat:0,gps_start_lng:0,gps_end_lat:0,gps_end_lng:0,sensor_config:{rgb_camera:formData.sensor_rgb,depth_camera:formData.sensor_depth,lidar:formData.sensor_lidar,imu:formData.sensor_imu,gps:formData.sensor_gps,wheel_odometry:formData.sensor_odom,microphone:formData.sensor_mic},sample_preview_url:"",camera_model:formData.camera_model||"",camera_mount_position:formData.camera_mount_position||"head_front",collector_id:formData.collector_id||"",collector_role:formData.collector_role||"courier",privacy_risk_level:"low",aspect_ratio:formData.aspect_ratio||"16:9",recording_width:formData.recording_width||1920,recording_height:formData.recording_height||1080,goal_type:formData.goal_type||"position",instruction_style:formData.instruction_style||"route",instruction_granularity:formData.instruction_granularity||"medium",observation_types:formData.observation_types||["rgb"],difficulty:formData.difficulty||"medium",annotation_method:formData.annotation_method||"human",training_split:formData.training_split||"",business_notes:{why_this_asset_matters:formData.business_why||"",customer_relevance:formData.business_customer||"",robot_capability_gap:formData.business_gap||"",product_implication:formData.business_product||"",sales_angle:formData.business_sales||"",internal_priority:formData.business_priority||"medium",next_action:formData.business_next||""}};
     setAssets(prev=>[newAsset,...prev]);
   };
 
   const resetDemoData=()=>{
     if(confirm("确认重置所有数据为演示数据？\nReset all data to demo defaults?")){
-      setAssets(MOCK_ASSETS);setFiles(MOCK_FILES);setMissions(MOCK_MISSIONS);setCollectors(MOCK_COLLECTORS);setRoutes(MOCK_ROUTES);setReports(MOCK_REPORTS);setProducts(MOCK_PRODUCTS);
+      setAssets(MOCK_ASSETS);setFiles(MOCK_FILES);setMissions(MOCK_MISSIONS);setCollectors(MOCK_COLLECTORS);setRoutes(MOCK_ROUTES);setReports(MOCK_REPORTS);setProducts(MOCK_PRODUCTS);setEnvironments(MOCK_ENVIRONMENTS);setEpisodes(MOCK_EPISODES);
     }
   };
 
@@ -1243,17 +1530,19 @@ function BeaverDataEngine(){
   const renderPage=()=>{
     if(page==="passport"&&currentAsset)return <AssetPassportPage asset={currentAsset} onBack={handleBack}/>;
     switch(page){
-      case "dashboard":return <DashboardPage assets={assets} missions={missions} collectors={collectors} routes={routes}/>;
+      case "dashboard":return <DashboardPage assets={assets} missions={missions} collectors={collectors} routes={routes} episodes={episodes} environments={environments}/>;
       case "list":return <AssetListPage assets={assets} onViewAsset={handleView}/>;
       case "missions":return <MissionsPage missions={missions} setMissions={setMissions} assets={assets}/>;
       case "collectors":return <CollectorsPage collectors={collectors} setCollectors={setCollectors}/>;
       case "routes":return <RoutesPage routes={routes} setRoutes={setRoutes} assets={assets}/>;
       case "privacy":return <PrivacyPage assets={assets} setAssets={setAssets}/>;
       case "reports":return <ReportsPage reports={reports} assets={assets} routes={routes} missions={missions}/>;
+      case "vln":return <VLNDataPage environments={environments} episodes={episodes} assets={assets} setEpisodes={setEpisodes}/>
+      case "training":return <TrainingPipelinePage episodes={episodes} setEpisodes={setEpisodes} environments={environments} assets={assets}/>
       case "create":return <CreateAssetPage onSubmit={handleCreate}/>;
       case "packages":return <ProductPackagesPage assets={assets} products={products} onViewAsset={handleView}/>;
       case "files":return <FileUploadPage assets={assets} files={files} setFiles={setFiles}/>;
-      default:return <DashboardPage assets={assets} missions={missions} collectors={collectors} routes={routes}/>;
+      default:return <DashboardPage assets={assets} missions={missions} collectors={collectors} routes={routes} episodes={episodes} environments={environments}/>;
     }
   };
   return <div style={{display:"flex",minHeight:"100vh",backgroundColor:COLORS.bg,fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif"}}>
