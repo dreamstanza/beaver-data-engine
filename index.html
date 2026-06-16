@@ -482,7 +482,7 @@ const MOCK_FILES=[
 const MOCK_REPORTS=[
 {report_id:"RPT-001",report_name:"翠苑片区末端100米通行场景报告",report_type:"scene_report",linked_mission_ids:["MSN-V2-001","MSN-V2-004"],linked_route_ids:["RTE-001","RTE-002","RTE-004"],linked_asset_ids:["BDP-2026-000011","BDP-2026-000012","BDP-2026-000014","BDP-2026-000015"],generated_at:"2026-06-12T10:00:00Z",author:"系统自动生成",summary:"翠苑片区末端配送场景分析：覆盖驿站到小区门口、小区内楼栋通行、电梯使用等核心场景。门禁和电梯是两大核心障碍。",key_findings:["门禁刷卡失败率高","电梯等待时间不可控","电动车停放阻挡严重","雨天湿滑路面增加风险"],top_blockers:["gate_access","elevator_access","parked_ebike","rain_slippery_ground"],robot_passability_score:2.5,recommended_robot_capabilities:["门禁卡/二维码识别","电梯呼叫与乘坐","窄道通行（<0.6m）","湿滑路面防滑"],data_coverage:"4条路线,12个资产,总距离2.1km",privacy_status:"75%已处理",export_status:"ready"},
 {report_id:"RPT-002",report_name:"末端配送失败案例专题分析",report_type:"failure_analysis",linked_mission_ids:["MSN-V2-001","MSN-V2-004"],linked_route_ids:["RTE-001","RTE-004"],linked_asset_ids:["BDP-2026-000004","BDP-2026-000009","BDP-2026-000014","BDP-2026-000018"],generated_at:"2026-06-12T14:00:00Z",author:"系统自动生成",summary:"失败案例专题分析：收录台阶通行失败、门禁阻挡、电动车堵路、用户不在等典型失败场景。",key_findings:["门禁是TOP1失败原因","台阶通行需要轮足切换","用户不在导致交付失败","电动车停放是持续性障碍"],top_blockers:["gate_access","stairs","customer_unavailable","parked_ebike"],robot_passability_score:1.8,recommended_robot_capabilities:["自主门禁对接","台阶攀爬","智能等待与通知","窄道避障"],data_coverage:"4条路线,8个资产,失败率62%",privacy_status:"80%已处理",export_status:"ready"},
-];,
+];
 
 /* === V0.3: MOCK ENVIRONMENTS === */
 const MOCK_ENVIRONMENTS=[
