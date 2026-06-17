@@ -38,8 +38,8 @@ window.addEventListener('error', function(e) {
 <script>if(!window.React){document.write('<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin><\/script>');}</script>
 <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
 <script>if(!window.ReactDOM){document.write('<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin><\/script>');}</script>
-<script src="https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js"></script>
-<script>if(!window.Babel){document.write('<script src="https://unpkg.com/@babel/standalone/babel.min.js"><\/script>');}</script>
+<script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.26.10/babel.min.js"></script>
+<script>if(!window.Babel){document.write('<script src="https://unpkg.com/@babel/standalone@7.26.10/babel.min.js"><\/script>');}</script>
 <script>
 // Final CDN check - show error if nothing loaded
 setTimeout(function(){
@@ -51,7 +51,7 @@ setTimeout(function(){
 },5000);
 </script>
 
-<script type="text/babel" data-presets="react" data-type="module">
+<script type="text/babel" data-presets="react">
 const {useState, useMemo, useEffect, useCallback} = React;
 
 /* ============================================================
